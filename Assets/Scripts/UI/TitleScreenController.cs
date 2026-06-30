@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using TMPro;
 using System.Collections;
 
@@ -18,7 +19,9 @@ public class TitleScreenController : MonoBehaviour
     {
         if (titleLabel)    titleLabel.text    = "DOOM SCROLLING";
         if (subtitleLabel) subtitleLabel.text = "YOU ARE ALREADY INSIDE.";
-        if (openAppButton) openAppButton.onClick.AddListener(OnOpenApp);
+
+        if (openAppButton)
+            openAppButton.onClick.AddListener(OnOpenApp);
 
         AudioManager.Instance?.PlayAmbientMusic();
         StartCoroutine(BadgeBounce());
@@ -30,7 +33,7 @@ public class TitleScreenController : MonoBehaviour
         _glitchTimer += Time.deltaTime;
         if (!_glitchOn && _glitchTimer >= 3f)
         {
-            _glitchOn = true;
+            _glitchOn    = true;
             _glitchTimer = 0f;
             StartCoroutine(GlitchFlash());
         }
@@ -66,5 +69,11 @@ public class TitleScreenController : MonoBehaviour
         }
     }
 
-    void OnOpenApp() => GameManager.Instance?.StartGame();
+    void OnOpenApp()
+    {
+        if (GameManager.Instance != null)
+            GameManager.Instance.StartGame();
+        else
+            SceneManager.LoadScene("GameScene");  // fallback if no GameManager
+    }
 }
