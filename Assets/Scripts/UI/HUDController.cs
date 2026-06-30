@@ -4,7 +4,6 @@ using TMPro;
 using System.Collections;
 
 // Attach to: HUD Canvas GameObject
-// Required: Canvas, child TMP labels and Image sliders assigned below
 // Dependencies: GameManager, SpeedSystem
 public class HUDController : MonoBehaviour
 {
@@ -14,22 +13,24 @@ public class HUDController : MonoBehaviour
     [SerializeField] TextMeshProUGUI scoreLabel;
     [SerializeField] TextMeshProUGUI levelLabel;
     [SerializeField] TextMeshProUGUI livesLabel;
+    [SerializeField] TextMeshProUGUI nextThresholdLabel; // optional: shows "NEXT: 1600"
 
-    [Header("Engagement bar")]
-    [SerializeField] Image engagementFill;     // Image type = Filled
+    [Header("Level progress bar")]
+    [SerializeField] Image levelProgressFill;   // fills as score → next threshold
+    [SerializeField] Image engagementFill;      // fills with speed (addiction meter)
     [SerializeField] TextMeshProUGUI engagementLabel;
 
     [Header("Overlay messages")]
-    [SerializeField] GameObject    overlayPanel;
+    [SerializeField] GameObject      overlayPanel;
     [SerializeField] TextMeshProUGUI overlayText;
 
     [Header("Colors")]
-    [SerializeField] Color colorNormal   = new Color(0.51f, 0.08f, 1f);    // #8115FF
-    [SerializeField] Color colorDanger   = new Color(1f,   0.23f, 0.37f);  // #FF3A5E
-    [SerializeField] Color colorOverlay  = new Color(1f,   0.30f, 0.56f);  // #FF4D90
+    [SerializeField] Color colorNormal   = new Color(1f,   0.30f, 0.56f); // #FF4D90 pink
+    [SerializeField] Color colorDanger   = new Color(1f,   0.23f, 0.37f); // #FF3A5E red
+    [SerializeField] Color colorProgress = new Color(0.51f, 0.37f, 1f);   // #815FFF purple
+    [SerializeField] Color colorOverlay  = new Color(1f,   0.30f, 0.56f); // #FF4D90
 
     Coroutine _overlayCoroutine;
-    int       _adCountdown;
 
     void Awake()
     {
@@ -41,9 +42,10 @@ public class HUDController : MonoBehaviour
     {
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.OnScoreChanged += RefreshScore;
-            GameManager.Instance.OnLivesChanged += RefreshLives;
-            GameManager.Instance.OnLevelChanged += RefreshLevel;
+            GameManager.Instance.OnScoreChanged        += RefreshScore;
+            GameManager.Instance.OnLivesChanged        += RefreshLives;
+            GameManager.Instance.OnLevelChanged        += RefreshLevel;
+            GameManager.Instance.OnLevelProgressChanged += RefreshLevelProgress;
         }
         if (SpeedSystem.Instance != null)
             SpeedSystem.Instance.OnSpeedChanged += RefreshEngagement;
@@ -53,9 +55,10 @@ public class HUDController : MonoBehaviour
     {
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.OnScoreChanged -= RefreshScore;
-            GameManager.Instance.OnLivesChanged -= RefreshLives;
-            GameManager.Instance.OnLevelChanged -= RefreshLevel;
+            GameManager.Instance.OnScoreChanged         -= RefreshScore;
+            GameManager.Instance.OnLivesChanged         -= RefreshLives;
+            GameManager.Instance.OnLevelChanged         -= RefreshLevel;
+            GameManager.Instance.OnLevelProgressChanged -= RefreshLevelProgress;
         }
         if (SpeedSystem.Instance != null)
             SpeedSystem.Instance.OnSpeedChanged -= RefreshEngagement;
@@ -63,7 +66,7 @@ public class HUDController : MonoBehaviour
 
     void Start()
     {
-        if (overlayPanel != null) overlayPanel.SetActive(false);
+        if (overlayPanel) overlayPanel.SetActive(false);
         RefreshAll();
     }
 
@@ -75,6 +78,7 @@ public class HUDController : MonoBehaviour
         RefreshScore(GameManager.Instance.Score);
         RefreshLives(GameManager.Instance.Lives);
         RefreshLevel(GameManager.Instance.Level);
+        RefreshLevelProgress(GameManager.Instance.LevelProgress());
         if (SpeedSystem.Instance != null)
             RefreshEngagement(SpeedSystem.Instance.CurrentMultiplier);
     }
@@ -86,12 +90,32 @@ public class HUDController : MonoBehaviour
 
     void RefreshLives(int l)
     {
-        if (livesLabel) livesLabel.text = string.Concat(System.Linq.Enumerable.Repeat("♥ ", Mathf.Max(0, l))).TrimEnd();
+        if (livesLabel)
+            livesLabel.text = string.Concat(
+                System.Linq.Enumerable.Repeat("♥ ", Mathf.Max(0, l))).TrimEnd();
     }
 
     void RefreshLevel(int lvl)
     {
-        if (levelLabel) levelLabel.text = lvl > 5 ? "∞" : $"{lvl:D2}";
+        if (levelLabel)
+            levelLabel.text = lvl >= GameManager.MaxLevel ? $"0{GameManager.MaxLevel}" : $"{lvl:D2}";
+
+        // Update next-threshold label
+        if (nextThresholdLabel)
+        {
+            int next = GameManager.Instance?.NextLevelThreshold() ?? -1;
+            nextThresholdLabel.text = next > 0 ? $"NEXT {next:D6}" : "MAX LEVEL";
+        }
+    }
+
+    void RefreshLevelProgress(float t)
+    {
+        if (levelProgressFill)
+        {
+            levelProgressFill.fillAmount = t;
+            // Pulse to white near 100%
+            levelProgressFill.color = Color.Lerp(colorProgress, Color.white, t * t);
+        }
     }
 
     void RefreshEngagement(float m)
@@ -124,7 +148,6 @@ public class HUDController : MonoBehaviour
             overlayText.color = colorOverlay;
         }
 
-        // Glitch flicker for clone phase
         bool isClone = message.Contains("CONTENT");
         if (isClone)
         {
@@ -132,7 +155,6 @@ public class HUDController : MonoBehaviour
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
-                // 3-frame text offset glitch
                 if (overlayText)
                 {
                     int frame = Mathf.FloorToInt(elapsed * 8f) % 3;

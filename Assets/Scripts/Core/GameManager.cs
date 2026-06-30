@@ -3,38 +3,45 @@ using UnityEngine.SceneManagement;
 using System.Collections;
 
 // Attach to: persistent GameObject "GameManager"
-// Required components: none
-// Dependencies: SpeedSystem, MazeLoader, HazardManager, HUDController
+// Level progression: score-based, thresholds double each level
+//   Level 1→2: 800   Level 2→3: 1600   Level 3→4: 3200
+//   Level 4→5: 6400  Level 5→6: 12800  Level 6→7: 25600  Level 7→8: 51200
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
-    // ── Scene names ──────────────────────────────────────────────
+    // ── Scene names ───────────────────────────────────────────────
     const string SCENE_TITLE    = "TitleScreen";
     const string SCENE_GAME     = "GameScene";
     const string SCENE_GAMEOVER = "GameOverScreen";
     const string SCENE_END      = "EndScreen";
 
+    // ── Level progression (score-based) ──────────────────────────
+    // ScoreThresholds[i] = cumulative score needed to advance from level (i+1) to (i+2)
+    static readonly int[] ScoreThresholds = { 800, 1600, 3200, 6400, 12800, 25600, 51200 };
+    public const int MaxLevel = 8;
+
     // ── Public state ──────────────────────────────────────────────
     public int   Score         { get; private set; }
     public int   Lives         { get; private set; } = 3;
     public int   Level         { get; private set; } = 1;
-    public float SessionTimer  { get; private set; }     // never resets
+    public float SessionTimer  { get; private set; }
     public bool  ApparentWin   { get; private set; }
     public bool  IsPlaying     { get; private set; }
 
     [Header("Config")]
-    [SerializeField] int   startLives     = 3;
-    [SerializeField] int   dotsPerLevel   = 180;
+    [SerializeField] int startLives = 3;
 
-    int   _dotsCollectedThisLevel;
-    int   _appIconsThisLevel;
+    int  _dotsCollected;     // stat tracking only — no longer drives level
+    int  _appIconsThisLevel;
+    bool _levelingUp;        // guard against double-trigger
 
     // ── Events ────────────────────────────────────────────────────
     public System.Action<int>   OnScoreChanged;
     public System.Action<int>   OnLivesChanged;
     public System.Action<int>   OnLevelChanged;
-    public System.Action<bool>  OnGameOver;      // true = apparent win
+    public System.Action<float> OnLevelProgressChanged; // 0–1, progress toward next threshold
+    public System.Action<bool>  OnGameOver;
     public System.Action        OnLevelComplete;
     public System.Action        OnClonePhaseEnd;
 
@@ -47,7 +54,6 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-        // When starting directly in GameScene (editor testing / direct load), auto-start
         if (SceneManager.GetActiveScene().name == SCENE_GAME && !IsPlaying)
         {
             Lives     = startLives;
@@ -65,13 +71,14 @@ public class GameManager : MonoBehaviour
 
     public void StartGame()
     {
-        Score = 0;
-        Lives = startLives;
-        Level = 1;
-        _dotsCollectedThisLevel = 0;
+        Score             = 0;
+        Lives             = startLives;
+        Level             = 1;
+        _dotsCollected    = 0;
         _appIconsThisLevel = 0;
-        ApparentWin = false;
-        IsPlaying = true;
+        _levelingUp       = false;
+        ApparentWin       = false;
+        IsPlaying         = true;
         SpeedSystem.Instance?.ResetSpeed();
         SceneManager.LoadScene(SCENE_GAME);
     }
@@ -80,20 +87,14 @@ public class GameManager : MonoBehaviour
     {
         Score += pts;
         OnScoreChanged?.Invoke(Score);
+        BroadcastLevelProgress();
+        CheckLevelUp();
     }
 
-    public void OnDotCollected()
-    {
-        _dotsCollectedThisLevel++;
-        if (_dotsCollectedThisLevel >= dotsPerLevel) StartCoroutine(LevelComplete());
-    }
-
-    public void OnAppIconCollected()
-    {
-        _appIconsThisLevel++;
-    }
-
-    public int AppIconsThisLevel => _appIconsThisLevel;
+    // Dot collected — stat tracking only, no level trigger
+    public void OnDotCollected()   => _dotsCollected++;
+    public void OnAppIconCollected() => _appIconsThisLevel++;
+    public int  AppIconsThisLevel  => _appIconsThisLevel;
 
     public void PlayerDied()
     {
@@ -109,23 +110,66 @@ public class GameManager : MonoBehaviour
         StartCoroutine(GameOver(true));
     }
 
+    // Returns score needed to reach next level (or -1 at max level)
+    public int NextLevelThreshold()
+    {
+        int idx = Level - 1;
+        return idx < ScoreThresholds.Length ? ScoreThresholds[idx] : -1;
+    }
+
+    // 0–1 progress towards the next level threshold
+    public float LevelProgress()
+    {
+        int idx = Level - 1;
+        if (idx >= ScoreThresholds.Length) return 1f; // max level
+        int prevThreshold = idx > 0 ? ScoreThresholds[idx - 1] : 0;
+        int nextThreshold = ScoreThresholds[idx];
+        return Mathf.Clamp01((float)(Score - prevThreshold) / (nextThreshold - prevThreshold));
+    }
+
     // ── Internals ────────────────────────────────────────────────
+
+    void CheckLevelUp()
+    {
+        if (_levelingUp || !IsPlaying) return;
+
+        int idx = Level - 1;
+        if (idx < ScoreThresholds.Length && Score >= ScoreThresholds[idx])
+            StartCoroutine(LevelComplete());
+    }
+
+    void BroadcastLevelProgress()
+    {
+        OnLevelProgressChanged?.Invoke(LevelProgress());
+    }
 
     IEnumerator LevelComplete()
     {
-        IsPlaying = false;
+        _levelingUp = true;
+        IsPlaying   = false;
         OnLevelComplete?.Invoke();
-        yield return new WaitForSeconds(2f);
+
+        // Show level-up overlay (HUDController listens to this)
+        HUDController.Instance?.ShowOverlay($"LEVEL {Level + 1} UNLOCKED", 2.5f);
+
+        yield return new WaitForSeconds(2.5f);
 
         Level++;
-        _dotsCollectedThisLevel = 0;
         _appIconsThisLevel = 0;
 
-        if (Level > 5) { TriggerApparentWin(); yield break; }
+        if (Level > MaxLevel)
+        {
+            _levelingUp = false;
+            TriggerApparentWin();
+            yield break;
+        }
 
         OnLevelChanged?.Invoke(Level);
+        _levelingUp = false;
+        IsPlaying   = true;
+
+        // Reload maze with new layout
         SceneManager.LoadScene(SCENE_GAME);
-        IsPlaying = true;
     }
 
     IEnumerator RespawnDelay()
@@ -133,7 +177,6 @@ public class GameManager : MonoBehaviour
         IsPlaying = false;
         yield return new WaitForSeconds(1.5f);
         IsPlaying = true;
-        // MazeLoader re-places player at spawn — signal via event
         Object.FindAnyObjectByType<MazeLoader>()?.RespawnPlayer();
     }
 
@@ -143,12 +186,9 @@ public class GameManager : MonoBehaviour
         yield return new WaitForSeconds(1.5f);
         ApparentWin = win;
         OnGameOver?.Invoke(win);
-
-        if (win) SceneManager.LoadScene(SCENE_END);
-        else     SceneManager.LoadScene(SCENE_GAMEOVER);
+        SceneManager.LoadScene(win ? SCENE_END : SCENE_GAMEOVER);
     }
 
-    // Formatted session time for end screen
     public string FormattedTime()
     {
         int min = (int)(SessionTimer / 60);
@@ -156,6 +196,5 @@ public class GameManager : MonoBehaviour
         return $"{min:D2}:{sec:D2}";
     }
 
-    // Layout index cycling (0-4)
     public int MazeLayoutIndex => (Level - 1) % 5;
 }
