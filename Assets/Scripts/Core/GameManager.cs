@@ -149,8 +149,9 @@ public class GameManager : MonoBehaviour
         IsPlaying   = false;
         OnLevelComplete?.Invoke();
 
-        // Show level-up overlay (HUDController listens to this)
-        HUDController.Instance?.ShowOverlay($"LEVEL {Level + 1} UNLOCKED", 2.5f);
+        // Show level-up overlay with new tier name
+        var nextTier = DifficultyConfig.Get(Level + 1);
+        HUDController.Instance?.ShowOverlay($"LEVEL {Level + 1}  —  {nextTier.Name}", 2.5f);
 
         yield return new WaitForSeconds(2.5f);
 

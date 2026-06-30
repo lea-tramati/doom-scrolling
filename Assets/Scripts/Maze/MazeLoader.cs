@@ -210,12 +210,26 @@ public class MazeLoader : MonoBehaviour
     void SpawnEnemies()
     {
         if (enemyPrefabs == null || _data.enemySpawns == null) return;
-        for (int i = 0; i < _data.enemySpawns.Length && i < enemyPrefabs.Length; i++)
+
+        int level = GameManager.Instance?.Level ?? 1;
+        var diff  = DifficultyConfig.Get(level);
+
+        // Apply this level's speed range to SpeedSystem
+        SpeedSystem.Instance?.ApplyDifficulty(level);
+
+        int count = Mathf.Min(diff.EnemyCount, enemyPrefabs.Length, _data.enemySpawns.Length);
+
+        for (int i = 0; i < count; i++)
         {
             if (enemyPrefabs[i] == null) continue;
             var go = Instantiate(enemyPrefabs[i], GridToWorld(_data.enemySpawns[i]), Quaternion.identity);
             go.tag = "Enemy";
-            go.GetComponent<LikeEnemy>()?.Init(_walkable, _data.enemySpawns[i]);
+            go.GetComponent<LikeEnemy>()?.Init(
+                _walkable,
+                _data.enemySpawns[i],
+                diff.EnemySpeed,
+                diff.ScatterDuration,
+                diff.Anticipate);
             _enemyInstances.Add(go);
         }
     }

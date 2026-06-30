@@ -9,10 +9,9 @@ using System.Collections;
 [RequireComponent(typeof(EnemyPathfinder))]
 public class LikeEnemy : MonoBehaviour
 {
-    // ── Config ────────────────────────────────────────────────────
-    [SerializeField] float baseSpeed       = 4f;  // tiles per second
-    [SerializeField] float frightenedSpeed = 0.5f; // multiplier during frightened
-    [SerializeField] float cloneDuration   = 8f;
+    // ── Config ─────────────────────────────────────────────────────
+    [SerializeField] float baseSpeed       = 4f;
+    [SerializeField] float frightenedSpeed = 0.5f;
     [SerializeField] Vector2Int scatterTarget = new Vector2Int(0, 0);
 
     [Header("Tier sprites")]
@@ -22,16 +21,21 @@ public class LikeEnemy : MonoBehaviour
     [SerializeField] Sprite spriteFrightened;
     [SerializeField] Sprite spriteClone;
 
-    // ── State machine ─────────────────────────────────────────────
+    // ── Difficulty params (set by MazeLoader via Init) ─────────────
+    float _diffSpeedMult  = 1f;   // from DifficultyConfig.EnemySpeed
+    float _scatterSeconds = 5f;   // from DifficultyConfig.ScatterDuration
+    bool  _anticipate     = false; // from DifficultyConfig.Anticipate
+
+    // ── State machine ──────────────────────────────────────────────
     enum EnemyState { Chase, Scatter, Frightened, Clone, Respawning }
     EnemyState _state = EnemyState.Scatter;
 
     // ── Runtime ───────────────────────────────────────────────────
-    bool[,]   _walkable;
+    bool[,]    _walkable;
     Vector2Int _gridPos;
     Vector2Int _spawnCell;
     bool       _isMoving;
-    float      _trendingBurst; // additive speed for 5s
+    float      _trendingBurst;
     float      _trendingTimer;
 
     EnemyPathfinder _pathfinder;
@@ -42,14 +46,19 @@ public class LikeEnemy : MonoBehaviour
     static readonly int AnimFrightened = Animator.StringToHash("Frightened");
     static readonly int AnimRespawn    = Animator.StringToHash("Respawn");
 
-    // ── Public API ────────────────────────────────────────────────
+    // ── Public API ─────────────────────────────────────────────────
     public bool IsFrightened => _state == EnemyState.Frightened || _state == EnemyState.Clone;
 
-    public void Init(bool[,] walkabilityGrid, Vector2Int spawnCell)
+    public void Init(bool[,] walkabilityGrid, Vector2Int spawnCell,
+                     float diffSpeedMult = 1f, float scatterDuration = 5f, bool anticipate = false)
     {
-        _walkable   = walkabilityGrid;
-        _spawnCell  = spawnCell;
-        _gridPos    = spawnCell;
+        _walkable       = walkabilityGrid;
+        _spawnCell      = spawnCell;
+        _gridPos        = spawnCell;
+        _diffSpeedMult  = diffSpeedMult;
+        _scatterSeconds = scatterDuration;
+        _anticipate     = anticipate;
+
         _pathfinder = GetComponent<EnemyPathfinder>();
         _pathfinder.Init(_walkable);
         _sr   = GetComponent<SpriteRenderer>();
@@ -69,7 +78,7 @@ public class LikeEnemy : MonoBehaviour
 
     void OnSpeedChanged(float m) => UpdateVisualTier(m);
 
-    // ── Movement loop ─────────────────────────────────────────────
+    // ── Movement loop ──────────────────────────────────────────────
 
     void Update()
     {
@@ -90,12 +99,11 @@ public class LikeEnemy : MonoBehaviour
         var player = Object.FindAnyObjectByType<PlayerController>();
         Vector2Int target = GetTarget(player);
 
-        bool anticipate = GameManager.Instance != null && GameManager.Instance.Level >= 3;
         Vector2Int playerDir = player != null
             ? new Vector2Int((int)player.MoveDir.x, -(int)player.MoveDir.y)
             : Vector2Int.zero;
 
-        Vector2Int next = _pathfinder.GetNextCell(_gridPos, target, anticipate, playerDir);
+        Vector2Int next = _pathfinder.GetNextCell(_gridPos, target, _anticipate, playerDir);
 
         Vector3 startPos = GridToWorld(_gridPos);
         Vector3 endPos   = GridToWorld(next);
@@ -112,7 +120,7 @@ public class LikeEnemy : MonoBehaviour
         }
 
         transform.position = endPos;
-        _gridPos = next;
+        _gridPos  = next;
         _isMoving = false;
     }
 
@@ -120,16 +128,13 @@ public class LikeEnemy : MonoBehaviour
     {
         switch (_state)
         {
+            case EnemyState.Frightened:
+                if (player != null)
+                    return new Vector2Int(MazeData.Width  - 1 - player.GridPos.x,
+                                         MazeData.Height - 1 - player.GridPos.y);
+                return scatterTarget;
             case EnemyState.Chase:
             case EnemyState.Clone:
-            case EnemyState.Frightened:
-                if (_state == EnemyState.Frightened)
-                {
-                    // Flee: move away from player
-                    if (player != null)
-                        return new Vector2Int(MazeData.Width - 1 - player.GridPos.x,
-                                             MazeData.Height - 1 - player.GridPos.y);
-                }
                 return player != null ? player.GridPos : scatterTarget;
             case EnemyState.Scatter:
                 return scatterTarget;
@@ -142,8 +147,8 @@ public class LikeEnemy : MonoBehaviour
 
     float ComputeSpeed()
     {
-        float m = SpeedSystem.Instance != null ? SpeedSystem.Instance.CurrentMultiplier : 1f;
-        float s = baseSpeed * m + _trendingBurst;
+        float sysMult = SpeedSystem.Instance != null ? SpeedSystem.Instance.CurrentMultiplier : 1f;
+        float s = baseSpeed * _diffSpeedMult * sysMult + _trendingBurst;
         if (_state == EnemyState.Frightened || _state == EnemyState.Clone)
             s = baseSpeed * frightenedSpeed;
         if (_state == EnemyState.Respawning)
@@ -151,12 +156,12 @@ public class LikeEnemy : MonoBehaviour
         return Mathf.Max(s, 0.5f);
     }
 
-    // ── State transitions ─────────────────────────────────────────
+    // ── State transitions ──────────────────────────────────────────
 
     IEnumerator ScatterThenChase()
     {
         SetState(EnemyState.Scatter);
-        yield return new WaitForSeconds(5f);
+        yield return new WaitForSeconds(_scatterSeconds);
         SetState(EnemyState.Chase);
     }
 
@@ -169,9 +174,9 @@ public class LikeEnemy : MonoBehaviour
 
     IEnumerator FrightenedSequence()
     {
+        float cloneDuration = 8f;
         SetState(EnemyState.Frightened);
         yield return new WaitForSeconds(cloneDuration * 0.75f);
-        // Flicker warning
         for (int i = 0; i < 6; i++)
         {
             _sr.enabled = !_sr.enabled;
@@ -192,7 +197,7 @@ public class LikeEnemy : MonoBehaviour
     IEnumerator CloneSequence()
     {
         SetState(EnemyState.Clone);
-        yield return new WaitForSeconds(cloneDuration);
+        yield return new WaitForSeconds(8f);
         SetState(EnemyState.Chase);
     }
 
@@ -208,25 +213,19 @@ public class LikeEnemy : MonoBehaviour
         _sr.enabled = false;
         AudioManager.Instance?.PlaySFX("enemy_return");
 
-        // Move back to spawn
         while (_gridPos != _spawnCell)
-        {
             yield return StartCoroutine(MoveStep());
-        }
 
-        // Materialize: 4-frame reveal
         _anim.SetTrigger(AnimRespawn);
         _sr.enabled = true;
         yield return new WaitForSeconds(0.8f);
         SetState(EnemyState.Chase);
     }
 
-    // ── Trending burst (called by TrendingTrap) ────────────────────
     public void ApplyTrendingBurst(float burstAmount, float duration)
     {
         _trendingBurst = burstAmount;
         _trendingTimer = duration;
-        // Brief orange flash
         StartCoroutine(OrangeFlash());
     }
 
@@ -236,8 +235,6 @@ public class LikeEnemy : MonoBehaviour
         yield return new WaitForSeconds(0.3f);
         _sr.color = Color.white;
     }
-
-    // ── Visual tier ───────────────────────────────────────────────
 
     void UpdateVisualTier(float m)
     {

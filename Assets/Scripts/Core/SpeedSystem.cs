@@ -2,12 +2,11 @@ using UnityEngine;
 using System;
 
 // Singleton — attach to a persistent GameObject named "SpeedSystem"
-// Dependencies: none (others depend on this)
 public class SpeedSystem : MonoBehaviour
 {
     public static SpeedSystem Instance { get; private set; }
 
-    [Header("Config")]
+    [Header("Default config (overridden by DifficultyConfig at level load)")]
     [SerializeField] float startMultiplier = 1f;
     [SerializeField] float maxMultiplier   = 3f;
 
@@ -29,13 +28,29 @@ public class SpeedSystem : MonoBehaviour
         OnSpeedChanged?.Invoke(CurrentMultiplier);
     }
 
-    // Called when starting a fresh session (new game, not level transition)
+    // Called on new game — resets to level-1 defaults
     public void ResetSpeed()
     {
+        var cfg = DifficultyConfig.Get(1);
+        startMultiplier   = cfg.SpeedBase;
+        maxMultiplier     = cfg.SpeedMax;
         CurrentMultiplier = startMultiplier;
         OnSpeedChanged?.Invoke(CurrentMultiplier);
     }
 
-    // Percentage 0–1 for HUD engagement bar
-    public float NormalizedSpeed => (CurrentMultiplier - startMultiplier) / (maxMultiplier - startMultiplier);
+    // Called by MazeLoader when a level loads — sets base & ceiling for this level's tier
+    public void ApplyDifficulty(int level)
+    {
+        var cfg = DifficultyConfig.Get(level);
+        startMultiplier   = cfg.SpeedBase;
+        maxMultiplier     = cfg.SpeedMax;
+        CurrentMultiplier = startMultiplier;
+        OnSpeedChanged?.Invoke(CurrentMultiplier);
+    }
+
+    // 0–1 for HUD engagement bar
+    public float NormalizedSpeed =>
+        maxMultiplier > startMultiplier
+            ? (CurrentMultiplier - startMultiplier) / (maxMultiplier - startMultiplier)
+            : 0f;
 }
