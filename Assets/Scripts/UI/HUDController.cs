@@ -81,17 +81,17 @@ public class HUDController : MonoBehaviour
 
     void RefreshScore(int s)
     {
-        if (scoreLabel) scoreLabel.text = $"SCORE\n{s}";
+        if (scoreLabel) scoreLabel.text = $"{s:D6}";
     }
 
     void RefreshLives(int l)
     {
-        if (livesLabel) livesLabel.text = new string('♥', Mathf.Max(0, l));
+        if (livesLabel) livesLabel.text = string.Concat(System.Linq.Enumerable.Repeat("♥ ", Mathf.Max(0, l))).TrimEnd();
     }
 
     void RefreshLevel(int lvl)
     {
-        if (levelLabel) levelLabel.text = lvl > 5 ? "LVL ∞" : $"LVL {lvl}";
+        if (levelLabel) levelLabel.text = lvl > 5 ? "∞" : $"{lvl:D2}";
     }
 
     void RefreshEngagement(float m)
