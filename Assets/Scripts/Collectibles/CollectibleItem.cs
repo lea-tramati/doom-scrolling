@@ -86,13 +86,21 @@ public class CollectibleItem : MonoBehaviour
         if (speedDelta > 0f) SpeedSystem.Instance?.AddSpeed(speedDelta);
         AudioManager.Instance?.PlaySFX(sfx);
 
+        // Floating score popup
+        if (pts > 0)
+        {
+            Color popupColor = pts >= 150
+                ? new Color(0f, 0.96f, 1f)           // hyper blue for big pickups
+                : new Color(1f, 0.30f, 0.56f);        // notification pink for dots
+            ScorePopup.Spawn(transform.position, $"+{pts}", popupColor);
+        }
+
         Destroy(gameObject);
     }
 
     void TriggerClonePhase()
     {
-        // Tell all enemies to enter frightened/clone state
-        foreach (var enemy in FindObjectsOfType<LikeEnemy>())
+        foreach (var enemy in Object.FindObjectsByType<LikeEnemy>(FindObjectsSortMode.None))
             enemy.EnterClone();
 
         AudioManager.Instance?.PlayClonePhaseMusic();

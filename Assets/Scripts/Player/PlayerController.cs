@@ -59,9 +59,11 @@ public class PlayerController : MonoBehaviour
         _queuedDir   = Vector2.zero;
         _currentSpeed = baseSpeed;
 
-        // Snap position to grid
         SnapToGrid();
         _stateManager?.SetState(PlayerState.Normal);
+
+        // Brief invincibility after respawn so player can't be hit immediately
+        GetComponent<DamageFlash>()?.StartRespawnInvincibility();
     }
 
     void SnapToGrid()
@@ -239,18 +241,27 @@ public class PlayerController : MonoBehaviour
     {
         if (_isDead) return;
 
+        // Ignore damage during post-respawn invincibility frames
+        var flash = GetComponent<DamageFlash>();
+
         if (other.CompareTag("Enemy"))
         {
             var enemy = other.GetComponent<LikeEnemy>();
-            if (enemy != null && enemy.IsFrightened)
+            if (enemy == null) return;
+
+            if (enemy.IsFrightened)
             {
                 enemy.GetEaten();
                 GameManager.Instance?.AddScore(200);
+                ScorePopup.Spawn(transform.position, "+200",
+                    new Color(0f, 0.96f, 1f));            // hyper blue
                 AudioManager.Instance?.PlaySFX("like_consume");
                 NotificationManager.Instance?.TriggerNotification("CONTENT SHARED", "clone");
             }
-            else if (enemy != null && !enemy.IsFrightened)
+            else if (!enemy.IsFrightened)
             {
+                if (flash != null && flash.IsInvincible) return;  // protected
+                flash?.PlayHitFlash();
                 Die();
             }
         }

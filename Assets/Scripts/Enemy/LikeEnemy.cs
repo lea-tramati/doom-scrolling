@@ -87,7 +87,7 @@ public class LikeEnemy : MonoBehaviour
     {
         _isMoving = true;
 
-        var player = FindObjectOfType<PlayerController>();
+        var player = Object.FindAnyObjectByType<PlayerController>();
         Vector2Int target = GetTarget(player);
 
         bool anticipate = GameManager.Instance != null && GameManager.Instance.Level >= 3;

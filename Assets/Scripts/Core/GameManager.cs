@@ -134,7 +134,7 @@ public class GameManager : MonoBehaviour
         yield return new WaitForSeconds(1.5f);
         IsPlaying = true;
         // MazeLoader re-places player at spawn — signal via event
-        FindObjectOfType<MazeLoader>()?.RespawnPlayer();
+        Object.FindAnyObjectByType<MazeLoader>()?.RespawnPlayer();
     }
 
     IEnumerator GameOver(bool win)
