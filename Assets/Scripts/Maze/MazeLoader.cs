@@ -43,6 +43,7 @@ public class MazeLoader : MonoBehaviour
         if (_data == null) { Debug.LogError("MazeLoader: no MazeData assigned!"); return; }
 
         ClearAll();
+        OpenTunnelCells();     // ensure both tunnel openings are walkable in every layout
         BuildWalkabilityGrid();
         PlaceTiles();
         SpawnCollectibles();
@@ -78,6 +79,17 @@ public class MazeLoader : MonoBehaviour
 
     Vector3Int GridToCell(Vector2Int cell) =>
         new Vector3Int(cell.x, MazeData.Height - 1 - cell.y, 0);
+
+    // ── Tunnel openings ───────────────────────────────────────────
+    // Forces left and right edge cells on TunnelRow to be floor in every layout.
+    // Modifies only the in-memory ScriptableObject (not saved to disk).
+    void OpenTunnelCells()
+    {
+        int left  = MazeData.TunnelRow * MazeData.Width;
+        int right = MazeData.TunnelRow * MazeData.Width + MazeData.Width - 1;
+        _data.wallGridFlat[left]  = 0;
+        _data.wallGridFlat[right] = 0;
+    }
 
     // ── Clear ────────────────────────────────────────────────────
 

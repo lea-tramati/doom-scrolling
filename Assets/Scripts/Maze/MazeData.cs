@@ -10,8 +10,9 @@ public class MazeData : ScriptableObject
     [SerializeField] public int[] wallGridFlat  = new int[19 * 21];
     [SerializeField] public int[] malusGridFlat = new int[19 * 21];
 
-    public const int Width  = 19;
-    public const int Height = 21;
+    public const int Width     = 19;
+    public const int Height    = 21;
+    public const int TunnelRow = 10;   // row with Pac-Man-style wrap-around openings
 
     public int GetWall(int x, int y)  => InBounds(x,y) ? wallGridFlat [y * Width + x] : 1;
     public int GetMalus(int x, int y) => InBounds(x,y) ? malusGridFlat[y * Width + x] : 0;
