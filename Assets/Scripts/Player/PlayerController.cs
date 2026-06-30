@@ -254,13 +254,14 @@ public class PlayerController : MonoBehaviour
                 enemy.GetEaten();
                 GameManager.Instance?.AddScore(200);
                 ScorePopup.Spawn(transform.position, "+200",
-                    new Color(0f, 0.96f, 1f));            // hyper blue
+                    new Color(0f, 0.96f, 1f));
                 AudioManager.Instance?.PlaySFX("like_consume");
                 NotificationManager.Instance?.TriggerNotification("CONTENT SHARED", "clone");
             }
-            else if (!enemy.IsFrightened)
+            else if (!enemy.IsFrightened && !enemy.IsRespawning)
             {
-                if (flash != null && flash.IsInvincible) return;  // protected
+                // Les ennemis en cours de respawn (invisibles) ne tuent pas
+                if (flash != null && flash.IsInvincible) return;
                 flash?.PlayHitFlash();
                 Die();
             }

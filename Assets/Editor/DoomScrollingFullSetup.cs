@@ -309,6 +309,7 @@ public static class DoomScrollingFullSetup
         var go = new GameObject("Player");
         go.tag = "Player";
         go.layer = 9;
+        go.transform.localScale = new Vector3(1.5f, 1.5f, 1f);
         var sr = go.AddComponent<SpriteRenderer>();
         sr.sortingOrder = 5;
         var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(PLAYER_SS);
@@ -324,7 +325,7 @@ public static class DoomScrollingFullSetup
         go.AddComponent<PlayerStateManager>();
         go.AddComponent<GlitchRenderer>();
         var col = go.AddComponent<CircleCollider2D>();
-        col.radius = 0.4f;
+        col.radius = 0.25f;
         col.isTrigger = true;
 
         PrefabUtility.SaveAsPrefabAsset(go, path);

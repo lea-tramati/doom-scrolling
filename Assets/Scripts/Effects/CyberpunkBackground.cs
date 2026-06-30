@@ -5,16 +5,17 @@ using UnityEngine;
 [RequireComponent(typeof(SpriteRenderer))]
 public class CyberpunkBackground : MonoBehaviour
 {
-    [SerializeField] float tintCycleSpeed = 0.08f;
+    [SerializeField] float tintCycleSpeed = 0.06f;
     [SerializeField] float brightnessMin  = 0.92f;
-    [SerializeField] float brightnessMax  = 1.02f;
-    [SerializeField] float flickerSpeed   = 1.4f;
+    [SerializeField] float brightnessMax  = 1.00f;
+    [SerializeField] float flickerSpeed   = 0.8f;
 
     SpriteRenderer _sr;
     float          _t;
 
-    static readonly Color TintA = new Color(0.85f, 0.80f, 1.00f);  // violet-cool
-    static readonly Color TintB = new Color(1.00f, 0.85f, 0.92f);  // slight pink warm
+    // Thème smartphone AMOLED : fond très sombre avec légère variation bleutée
+    static readonly Color TintA = new Color(0.05f, 0.05f, 0.08f);  // noir bleuté
+    static readonly Color TintB = new Color(0.04f, 0.04f, 0.06f);  // noir légèrement plus chaud
 
     void Awake() => _sr = GetComponent<SpriteRenderer>();
 

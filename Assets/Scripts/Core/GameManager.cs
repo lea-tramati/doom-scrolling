@@ -179,6 +179,10 @@ public class GameManager : MonoBehaviour
         yield return new WaitForSeconds(1.5f);
         IsPlaying = true;
         Object.FindAnyObjectByType<MazeLoader>()?.RespawnPlayer();
+
+        // Grace period : les ennemis scattent 3s pour donner le temps au joueur de se repositionner
+        foreach (var enemy in Object.FindObjectsByType<LikeEnemy>(FindObjectsSortMode.None))
+            enemy.ScatterBriefly(3f);
     }
 
     IEnumerator GameOver(bool win)

@@ -22,16 +22,19 @@ public class MazeLoader : MonoBehaviour
     [SerializeField] MazeData[] layouts;    // assign 5 assets in Inspector
 
     [Header("Prefabs")]
-    [SerializeField] GameObject playerPrefab;
+    [SerializeField] GameObject   playerPrefab;
     [SerializeField] GameObject[] enemyPrefabs;    // 4 enemies
-    [SerializeField] GameObject dotPrefab;
+    [SerializeField] GameObject   dotPrefab;       // dot fallback (legacy)
+    [SerializeField] GameObject[] dotPrefabs;      // app icon dots — tirage aléatoire
     [SerializeField] GameObject[] appIconPrefabs;  // 4 social icons
     [SerializeField] GameObject bonusPointsPrefab;
     [SerializeField] GameObject smartphonePrefab;
+    [SerializeField] GameObject malusMarkerPrefab; // TikTok icon shown on slow-zone tiles
 
     MazeData _data;
     GameObject _playerInstance;
-    List<GameObject> _enemyInstances = new();
+    List<GameObject> _enemyInstances  = new();
+    List<GameObject> _malusMarkers    = new();
     bool[,] _walkable;
 
     void Start() => LoadLevel();
@@ -43,9 +46,10 @@ public class MazeLoader : MonoBehaviour
         if (_data == null) { Debug.LogError("MazeLoader: no MazeData assigned!"); return; }
 
         ClearAll();
-        OpenTunnelCells();     // ensure both tunnel openings are walkable in every layout
+        OpenTunnelCells();
         BuildWalkabilityGrid();
         PlaceTiles();
+        ApplySmartphoneTheme();
         SpawnCollectibles();
         SpawnPlayer();
         SpawnEnemies();
@@ -72,6 +76,22 @@ public class MazeLoader : MonoBehaviour
     }
 
     public bool[,] GetWalkabilityGrid() => _walkable;
+
+    // ── Smartphone theme ──────────────────────────────────────────
+
+    void ApplySmartphoneTheme()
+    {
+        // Fond AMOLED noir profond
+        if (Camera.main != null)
+            Camera.main.backgroundColor = new Color(0.02f, 0.02f, 0.03f);
+
+        // Murs : gris-bleu sombre (comme les bords d'un UI smartphone)
+        if (wallTilemap  != null) wallTilemap.color  = new Color(0.40f, 0.42f, 0.50f);
+        // Sol : quasi-noir
+        if (floorTilemap != null) floorTilemap.color = new Color(0.06f, 0.06f, 0.09f);
+        // Zone lente : gris légèrement plus clair pour rester lisible
+        if (malusTilemap != null) malusTilemap.color = new Color(0.30f, 0.30f, 0.35f);
+    }
 
     Vector3 GridToWorld(Vector2Int cell) =>
         wallTilemap.CellToWorld(new Vector3Int(cell.x, MazeData.Height - 1 - cell.y, 0))
@@ -103,6 +123,8 @@ public class MazeLoader : MonoBehaviour
             if (t.CompareTag("Collectible") || t.CompareTag("Enemy"))
                 Destroy(t.gameObject);
 
+        foreach (var m in _malusMarkers) if (m) Destroy(m);
+        _malusMarkers.Clear();
         _enemyInstances.Clear();
     }
 
@@ -127,7 +149,19 @@ public class MazeLoader : MonoBehaviour
                     floorTilemap.SetTile(cell, isFeed ? tileFloorFeed : tileFloorPlain);
 
                     if (_data.GetMalus(x, y) == 1)
+                    {
                         malusTilemap.SetTile(cell, tileMalus);
+                        var markerPrefab = malusMarkerPrefab != null
+                            ? malusMarkerPrefab
+                            : Resources.Load<GameObject>("MalusMarker");
+                        if (markerPrefab != null)
+                        {
+                            var marker = Instantiate(markerPrefab,
+                                GridToWorld(new Vector2Int(x, y)),
+                                Quaternion.identity, transform);
+                            _malusMarkers.Add(marker);
+                        }
+                    }
                 }
             }
         }
@@ -170,12 +204,19 @@ public class MazeLoader : MonoBehaviour
         if (_data.smartphoneSpawns  != null) foreach (var p in _data.smartphoneSpawns)  specialSet.Add(p);
         specialSet.Add(_data.playerSpawn);
 
-        if (dotPrefab != null)
+        // Utilise dotPrefabs[] (app icons) si disponible, sinon dotPrefab (legacy)
+        bool hasAppDots = dotPrefabs != null && dotPrefabs.Length > 0;
+        if (hasAppDots || dotPrefab != null)
         {
             for (int y = 0; y < MazeData.Height; y++)
                 for (int x = 0; x < MazeData.Width; x++)
-                    if (_data.GetWall(x, y) == 0 && _data.GetMalus(x, y) == 0 && !specialSet.Contains(new Vector2Int(x,y)))
-                        SpawnAt(dotPrefab, new Vector2Int(x, y));
+                    if (_data.GetWall(x, y) == 0 && _data.GetMalus(x, y) == 0 && !specialSet.Contains(new Vector2Int(x, y)))
+                    {
+                        var prefab = hasAppDots
+                            ? dotPrefabs[Random.Range(0, dotPrefabs.Length)]
+                            : dotPrefab;
+                        SpawnAt(prefab, new Vector2Int(x, y));
+                    }
         }
 
         if (appIconPrefabs != null && appIconPrefabs.Length > 0 && _data.appIconSpawns != null)
