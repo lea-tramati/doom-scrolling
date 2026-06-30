@@ -1,0 +1,17 @@
+# Normalize line endings
+* text=auto
+
+# Unity binary assets — never diff/merge
+*.unity binary
+*.prefab binary
+*.asset binary
+*.mat binary
+*.controller binary
+*.anim binary
+*.png binary
+*.jpg binary
+*.wav binary
+*.mp3 binary
+*.ogg binary
+*.ttf binary
+*.otf binary

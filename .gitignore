@@ -1,0 +1,31 @@
+# Unity generated — never commit these
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+
+# Visual Studio / Rider
+.vs/
+*.sln
+*.csproj
+.idea/
+*.user
+
+# OS generated
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+
+# Crash / compile logs
+sysinfo.txt
+*.log
+unity_*.txt
+
+# Unity artifacts leaked to project root
+SceneVisibilityState.asset
+[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]
+FSTimeGet-*
