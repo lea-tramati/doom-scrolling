@@ -30,11 +30,17 @@ public class MazeLoader : MonoBehaviour
     [SerializeField] GameObject bonusPointsPrefab;
     [SerializeField] GameObject smartphonePrefab;
     [SerializeField] GameObject malusMarkerPrefab; // TikTok icon shown on slow-zone tiles
+    [SerializeField] GameObject[] widgetPrefabs;   // decorative iPhone-widget overlays, 3x3 cells
+
+    const int WIDGET_SIZE     = 3;
+    const int MAX_WIDGETS     = 2;
 
     MazeData _data;
     GameObject _playerInstance;
     List<GameObject> _enemyInstances  = new();
     List<GameObject> _malusMarkers    = new();
+    List<Vector2Int>  _widgetCenters  = new();
+    HashSet<Vector2Int> _widgetCells  = new();
     bool[,] _walkable;
 
     void Start() => LoadLevel();
@@ -48,9 +54,11 @@ public class MazeLoader : MonoBehaviour
         ClearAll();
         OpenTunnelCells();
         BuildWalkabilityGrid();
+        FindWidgetZones();
         PlaceTiles();
         ApplySmartphoneTheme();
         SpawnCollectibles();
+        SpawnWidgets();
         SpawnPlayer();
         SpawnEnemies();
     }
@@ -126,6 +134,76 @@ public class MazeLoader : MonoBehaviour
         foreach (var m in _malusMarkers) if (m) Destroy(m);
         _malusMarkers.Clear();
         _enemyInstances.Clear();
+        _widgetCenters.Clear();
+        _widgetCells.Clear();
+    }
+
+    // ── Widget zones (decorative iPhone-widget overlays) ───────────
+    // Finds up to MAX_WIDGETS non-overlapping WIDGET_SIZE x WIDGET_SIZE
+    // blocks of open floor (not walls, not malus, not any spawn point) and
+    // reserves their cells so collectibles don't spawn underneath them.
+    void FindWidgetZones()
+    {
+        var reserved = new HashSet<Vector2Int>();
+        if (_data.appIconSpawns     != null) foreach (var p in _data.appIconSpawns)     reserved.Add(p);
+        if (_data.bonusPointsSpawns != null) foreach (var p in _data.bonusPointsSpawns) reserved.Add(p);
+        if (_data.smartphoneSpawns  != null) foreach (var p in _data.smartphoneSpawns)  reserved.Add(p);
+        if (_data.enemySpawns       != null) foreach (var p in _data.enemySpawns)       reserved.Add(p);
+        reserved.Add(_data.playerSpawn);
+
+        var candidates = new List<Vector2Int>();
+        for (int y = 0; y <= MazeData.Height - WIDGET_SIZE; y++)
+        {
+            for (int x = 0; x <= MazeData.Width - WIDGET_SIZE; x++)
+            {
+                bool ok = true;
+                for (int dy = 0; dy < WIDGET_SIZE && ok; dy++)
+                for (int dx = 0; dx < WIDGET_SIZE && ok; dx++)
+                {
+                    int cx = x + dx, cy = y + dy;
+                    if (_data.GetWall(cx, cy) != 0 || _data.GetMalus(cx, cy) != 0 ||
+                        reserved.Contains(new Vector2Int(cx, cy)))
+                        ok = false;
+                }
+                if (ok) candidates.Add(new Vector2Int(x, y));
+            }
+        }
+
+        // Shuffle candidates, then greedily accept non-overlapping blocks
+        for (int i = candidates.Count - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            (candidates[i], candidates[j]) = (candidates[j], candidates[i]);
+        }
+
+        foreach (var topLeft in candidates)
+        {
+            if (_widgetCenters.Count >= MAX_WIDGETS) break;
+
+            bool overlaps = false;
+            for (int dy = 0; dy < WIDGET_SIZE && !overlaps; dy++)
+            for (int dx = 0; dx < WIDGET_SIZE && !overlaps; dx++)
+                if (_widgetCells.Contains(new Vector2Int(topLeft.x + dx, topLeft.y + dy)))
+                    overlaps = true;
+            if (overlaps) continue;
+
+            for (int dy = 0; dy < WIDGET_SIZE; dy++)
+            for (int dx = 0; dx < WIDGET_SIZE; dx++)
+                _widgetCells.Add(new Vector2Int(topLeft.x + dx, topLeft.y + dy));
+
+            _widgetCenters.Add(new Vector2Int(topLeft.x + 1, topLeft.y + 1)); // 3x3 center
+        }
+    }
+
+    void SpawnWidgets()
+    {
+        if (widgetPrefabs == null || widgetPrefabs.Length == 0) return;
+
+        foreach (var center in _widgetCenters)
+        {
+            var prefab = widgetPrefabs[Random.Range(0, widgetPrefabs.Length)];
+            SpawnAt(prefab, center);
+        }
     }
 
     // ── Tile placement ────────────────────────────────────────────
@@ -210,7 +288,8 @@ public class MazeLoader : MonoBehaviour
         {
             for (int y = 0; y < MazeData.Height; y++)
                 for (int x = 0; x < MazeData.Width; x++)
-                    if (_data.GetWall(x, y) == 0 && _data.GetMalus(x, y) == 0 && !specialSet.Contains(new Vector2Int(x, y)))
+                    if (_data.GetWall(x, y) == 0 && _data.GetMalus(x, y) == 0 &&
+                        !specialSet.Contains(new Vector2Int(x, y)) && !_widgetCells.Contains(new Vector2Int(x, y)))
                     {
                         var prefab = hasAppDots
                             ? dotPrefabs[Random.Range(0, dotPrefabs.Length)]
