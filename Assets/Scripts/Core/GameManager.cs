@@ -165,6 +165,10 @@ public class GameManager : MonoBehaviour
             yield break;
         }
 
+        // Full life refill on every level-up
+        Lives = startLives;
+        OnLivesChanged?.Invoke(Lives);
+
         OnLevelChanged?.Invoke(Level);
         _levelingUp = false;
         IsPlaying   = true;

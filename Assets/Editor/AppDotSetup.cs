@@ -11,15 +11,19 @@ public static class AppDotSetup
 {
     enum BgType { White, Black, Blue }
 
+    // NOTE (2026-07): Instagram, Discord and Twitter were removed from this list.
+    // Discord/Twitter source images were near-monochrome brand colors that the
+    // flood-fill background remover misidentified as background, producing
+    // near-blank sprites — they were replaced by Facebook/Reddit (processed
+    // externally). Instagram was swapped for a cleaner externally-processed logo.
+    // WhatsApp/Netflix/Gmail were also added externally. Re-running this tool will
+    // NOT touch any of those 6 dots — only the ones still listed below.
     static readonly (string src, string name, BgType bg)[] Sources =
     {
         (@"c:\Users\Utilisateur\Downloads\Snapchat icons.png",                   "Snapchat",  BgType.White),
-        (@"c:\Users\Utilisateur\Downloads\Instagram icon.png",                   "Instagram", BgType.White),
-        (@"c:\Users\Utilisateur\Downloads\pixel-logo-v0-tu9984z5t6eb1.jpg",     "Twitter",   BgType.Black),
         (@"c:\Users\Utilisateur\Downloads\youtube-logo.png",                     "YouTube",   BgType.White),
         (@"c:\Users\Utilisateur\Downloads\5241dea711b7a20.png",                  "Spotify",   BgType.Black),
         (@"c:\Users\Utilisateur\Downloads\d7208097157399cec0aa4d072f3fb947.jpg", "Pinterest", BgType.White),
-        (@"c:\Users\Utilisateur\Downloads\w1oj8uddc3671.png",                    "Discord",   BgType.Blue),
         (@"c:\Users\Utilisateur\Downloads\twitch-logo.png",                      "Twitch",    BgType.White),
     };
 

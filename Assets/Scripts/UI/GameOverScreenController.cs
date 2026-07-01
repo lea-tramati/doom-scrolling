@@ -16,7 +16,12 @@ public class GameOverScreenController : MonoBehaviour
     void Start()
     {
         if (sessionEndedLabel)
-            sessionEndedLabel.text = "SESSION\nENDED";
+        {
+            float hours = (GameManager.Instance?.SessionTimer ?? 0f) / 3600f;
+            sessionEndedLabel.text =
+                $"You played for {hours:0.0} hours. Maybe it's time to unplug" +
+                "\n\n<size=150%>game over</size>";
+        }
 
         if (totalScoreLabel)
         {
