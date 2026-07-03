@@ -38,9 +38,9 @@ Material:
     - _OutlineSoftness: 0
     - _OutlineWidth: 0
     - _PerspectiveFilter: 0.875
-    - _ScaleRatioA: 1
+    - _ScaleRatioA: 0.85714287
     - _ScaleRatioB: 1
-    - _ScaleRatioC: 1
+    - _ScaleRatioC: 0.6964286
     - _ScaleX: 1
     - _ScaleY: 1
     - _ShaderFlags: 0
@@ -147,7 +147,15 @@ MonoBehaviour:
     m_Height: 1023
   m_FontFeatureTable:
     m_MultipleSubstitutionRecords: []
-    m_LigatureSubstitutionRecords: []
+    m_LigatureSubstitutionRecords:
+    - m_ComponentGlyphIDs: 43000000c100000013020000
+      m_LigatureGlyphID: 629
+    - m_ComponentGlyphIDs: 3c0000000b020000
+      m_LigatureGlyphID: 64
+    - m_ComponentGlyphIDs: f801000019020000f9010000
+      m_LigatureGlyphID: 518
+    - m_ComponentGlyphIDs: f801000019020000fb010000
+      m_LigatureGlyphID: 519
     m_GlyphPairAdjustmentRecords: []
     m_MarkToBaseAdjustmentRecords: []
     m_MarkToMarkAdjustmentRecords: []
@@ -248,7 +256,7 @@ Texture2D:
   m_ColorSpace: 1
   m_PlatformBlob: 
   image data: 1
-  _typelessdata: cd
+  _typelessdata: 00
   m_StreamData:
     serializedVersion: 2
     offset: 0
