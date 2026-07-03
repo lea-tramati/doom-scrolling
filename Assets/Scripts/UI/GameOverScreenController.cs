@@ -34,17 +34,17 @@ public class GameOverScreenController : MonoBehaviour
     {
         yield return FadeIn();
 
-        float hours = (GameManager.Instance?.SessionTimer ?? 0f) / 3600f;
-        yield return TypeLine(sessionEndedLabel,
-            $"You played for {hours:0.0} hours. Maybe it's time to unplug");
+        if (sessionEndedLabel)
+        {
+            yield return TypeLine(sessionEndedLabel, "GAME OVER");
+            yield return GlitchJitter(sessionEndedLabel.rectTransform);
+        }
 
         yield return new WaitForSeconds(0.5f);
 
+        float hours = (GameManager.Instance?.SessionTimer ?? 0f) / 3600f;
         if (sessionEndedLabel)
-        {
-            sessionEndedLabel.text += "\n\n<size=150%>game over</size>";
-            yield return GlitchJitter(sessionEndedLabel.rectTransform);
-        }
+            sessionEndedLabel.text += $"\n\nYou played for {hours:0.0} hours. Maybe it's time to unplug";
 
         yield return new WaitForSeconds(0.3f);
 
