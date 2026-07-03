@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 // Attach to: Main Camera
 // Smooth-follows the player and stays within maze bounds.
