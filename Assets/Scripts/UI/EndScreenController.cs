@@ -174,10 +174,6 @@ public class EndScreenController : MonoBehaviour
         }
 
         yield return new WaitForSeconds(2f);
-        Application.Quit();
-
-#if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-#endif
+        SceneManager.LoadScene("CreditsScreen");
     }
 }

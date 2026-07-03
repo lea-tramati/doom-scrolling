@@ -11,6 +11,9 @@ public class TitleScreenController : MonoBehaviour
     [SerializeField] TextMeshProUGUI subtitleLabel;
     [SerializeField] Button          openAppButton;
     [SerializeField] RectTransform   notifBadge;   // bouncing "99+"
+    [SerializeField] GameObject      howToPlayPanel;
+    [SerializeField] Button          gotItButton;
+    [SerializeField] Button          creditsButton;
 
     float _glitchTimer;
     bool  _glitchOn;
@@ -23,8 +26,22 @@ public class TitleScreenController : MonoBehaviour
         if (openAppButton)
             openAppButton.onClick.AddListener(OnOpenApp);
 
+        if (howToPlayPanel) howToPlayPanel.SetActive(true);
+        if (gotItButton)    gotItButton.onClick.AddListener(OnGotIt);
+        if (creditsButton)  creditsButton.onClick.AddListener(OnCredits);
+
         AudioManager.Instance?.PlayAmbientMusic();
         StartCoroutine(BadgeBounce());
+    }
+
+    void OnGotIt()
+    {
+        if (howToPlayPanel) howToPlayPanel.SetActive(false);
+    }
+
+    void OnCredits()
+    {
+        SceneManager.LoadScene("CreditsScreen");
     }
 
     void Update()

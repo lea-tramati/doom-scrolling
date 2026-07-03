@@ -36,6 +36,17 @@ public class LikeEnemy : MonoBehaviour
     enum Personality { Chaser, Ambusher, Flanker, Skittish }
     Personality _personality = Personality.Chaser;
 
+    // Pac-Man-style ghost identity colors: Chaser=Blinky red, Ambusher=Pinky pink,
+    // Flanker=Inky cyan, Skittish=Clyde orange — lets players read each enemy's role at a glance.
+    static readonly Color[] PersonalityColors =
+    {
+        new Color(1f,    0.23f, 0.19f), // Chaser  — red
+        new Color(1f,    0.40f, 0.77f), // Ambusher — pink
+        new Color(0f,    0.90f, 1f),    // Flanker  — cyan
+        new Color(1f,    0.58f, 0f),    // Skittish — orange
+    };
+    Color _baseColor = Color.white;
+
     // ── State machine ──────────────────────────────────────────────
     enum EnemyState { Chase, Scatter, Frightened, Clone, Respawning }
     EnemyState _state = EnemyState.Scatter;
@@ -77,6 +88,7 @@ public class LikeEnemy : MonoBehaviour
         _scatterSeconds = scatterDuration;
         _anticipate     = anticipate;
         _personality    = (Personality)(personalityIndex % 4);
+        _baseColor      = PersonalityColors[(int)_personality];
 
         _pathfinder    = GetComponent<EnemyPathfinder>();
         _pathfinder.Init(_walkable);
@@ -176,6 +188,9 @@ public class LikeEnemy : MonoBehaviour
                                          MazeData.Height - 1 - player.GridPos.y);
                 return scatterTarget;
             case EnemyState.Chase:
+                if (player == null) return scatterTarget;
+                if (IsPlayerHidden(player)) return scatterTarget; // lost track — player ducked into a niche
+                return GetPersonalityTarget(player);
             case EnemyState.Clone:
                 return player != null ? GetPersonalityTarget(player) : scatterTarget;
             case EnemyState.Scatter:
@@ -185,6 +200,16 @@ public class LikeEnemy : MonoBehaviour
             default:
                 return scatterTarget;
         }
+    }
+
+    // True while the player stands in a dead-end niche (MazeLoader.HideCells) and this
+    // enemy isn't already right next to them — they've broken line of sight.
+    bool IsPlayerHidden(PlayerController player)
+    {
+        if (MazeLoader.HideCells == null || MazeLoader.HideCells.Count == 0) return false;
+        if (!MazeLoader.HideCells.Contains(player.GridPos)) return false;
+        int dist = Mathf.Abs(_gridPos.x - player.GridPos.x) + Mathf.Abs(_gridPos.y - player.GridPos.y);
+        return dist > 1;
     }
 
     // Blinky/Pinky/Inky/Clyde-style targeting so the 4 enemies don't all behave identically.
@@ -289,15 +314,20 @@ public class LikeEnemy : MonoBehaviour
     IEnumerator RespawnSequence()
     {
         SetState(EnemyState.Respawning);
-        _sr.enabled = false;
         AudioManager.Instance?.PlaySFX("enemy_return");
 
-        yield return new WaitForSeconds(0.6f);
+        var dissolve = GetComponent<DissolveEffect>();
+        if (dissolve == null) dissolve = gameObject.AddComponent<DissolveEffect>();
+        yield return StartCoroutine(dissolve.Dissolve(0.45f, new Color(0f, 0.96f, 1f, 1f)));
+        _sr.enabled = false;
+
+        yield return new WaitForSeconds(0.15f);
 
         // Téléportation directe au spawn — bloquer l'Update pendant ce temps
         _isMoving = true;
         _gridPos  = _spawnCell;
         transform.position = GridToWorld(_spawnCell);
+        dissolve.ResetVisual();
 
         // Clignotement d'apparition (4 flashs)
         if (_anim && _anim.runtimeAnimatorController) _anim.SetTrigger(AnimRespawn);
@@ -346,7 +376,7 @@ public class LikeEnemy : MonoBehaviour
         if (_sr) _sr.color = new Color(0f, 0.96f, 1f); // cyan flash #00F5FF
         yield return new WaitForSeconds(malusDuration);
         _malusActive = false;
-        if (_sr) _sr.color = Color.white;
+        if (_sr) _sr.color = _baseColor;
     }
 
     public void ApplyTrendingBurst(float burstAmount, float duration)
@@ -360,7 +390,7 @@ public class LikeEnemy : MonoBehaviour
     {
         _sr.color = new Color(1f, 0.55f, 0.1f);
         yield return new WaitForSeconds(0.3f);
-        _sr.color = Color.white;
+        _sr.color = _baseColor;
     }
 
     void UpdateVisualTier(float m)
@@ -417,7 +447,7 @@ public class LikeEnemy : MonoBehaviour
                 default:
                     float m = SpeedSystem.Instance ? SpeedSystem.Instance.CurrentMultiplier : 1f;
                     UpdateVisualTier(m);
-                    _sr.color = Color.white;
+                    _sr.color = _baseColor;
                     _sr.flipX = false;
                     transform.localScale = _originalScale;
                     break;

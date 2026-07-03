@@ -149,9 +149,9 @@ public class GameManager : MonoBehaviour
         IsPlaying   = false;
         OnLevelComplete?.Invoke();
 
-        // Show level-up overlay with new tier name
+        // Show a full-screen level transition so the jump to the next level is unmistakable
         var nextTier = DifficultyConfig.Get(Level + 1);
-        HUDController.Instance?.ShowOverlay($"LEVEL {Level + 1}  —  {nextTier.Name}", 2.5f);
+        HUDController.Instance?.ShowLevelTransition($"LEVEL {Level + 1}", nextTier.Name, 2.5f);
 
         yield return new WaitForSeconds(2.5f);
 

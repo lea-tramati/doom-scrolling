@@ -10,7 +10,7 @@ public class HUDController : MonoBehaviour
     [Header("Score / Level / Lives")]
     [SerializeField] TextMeshProUGUI scoreLabel;
     [SerializeField] TextMeshProUGUI levelLabel;
-    [SerializeField] TextMeshProUGUI livesLabel;
+    [SerializeField] Image[]         lifeIcons;   // Pac-Man-style row of icons, one per remaining life
     [SerializeField] TextMeshProUGUI nextThresholdLabel;
 
     [Header("Level progress bar")]
@@ -21,6 +21,10 @@ public class HUDController : MonoBehaviour
     [Header("Overlay messages")]
     [SerializeField] GameObject      overlayPanel;
     [SerializeField] TextMeshProUGUI overlayText;
+
+    [Header("Level transition")]
+    [SerializeField] CanvasGroup     levelTransitionPanel;
+    [SerializeField] TextMeshProUGUI levelTransitionText;
 
     [Header("Colors")]
     [SerializeField] Color colorNormal   = new Color(1f,   0.30f, 0.56f); // #FF4D90
@@ -116,15 +120,16 @@ public class HUDController : MonoBehaviour
 
     void RefreshLives(int l)
     {
-        if (!livesLabel) return;
-        livesLabel.text = string.Concat(
-            System.Linq.Enumerable.Repeat("♥ ", Mathf.Max(0, l))).TrimEnd();
+        if (lifeIcons == null) return;
+        for (int i = 0; i < lifeIcons.Length; i++)
+            if (lifeIcons[i]) lifeIcons[i].gameObject.SetActive(i < l);
 
         if (_blinkCoroutine != null) StopCoroutine(_blinkCoroutine);
-        if (l == 1)
-            _blinkCoroutine = StartCoroutine(BlinkLabel(livesLabel, colorDanger));
+        if (l == 1 && lifeIcons.Length > 0 && lifeIcons[0])
+            _blinkCoroutine = StartCoroutine(BlinkIcon(lifeIcons[0]));
         else
-            livesLabel.color = colorNormal;
+            foreach (var icon in lifeIcons)
+                if (icon) icon.color = new Color(1f, 0.3019608f, 0.5647059f, 1f);
     }
 
     void RefreshLevel(int lvl)
@@ -206,6 +211,44 @@ public class HUDController : MonoBehaviour
         }
     }
 
+    // ── Level transition (full-screen, distinct from the compact overlay banner) ──
+
+    public void ShowLevelTransition(string bigLine, string smallLine, float duration)
+    {
+        StartCoroutine(LevelTransitionSequence(bigLine, smallLine, duration));
+    }
+
+    IEnumerator LevelTransitionSequence(string bigLine, string smallLine, float duration)
+    {
+        if (levelTransitionPanel == null) yield break;
+
+        if (levelTransitionText)
+            levelTransitionText.text = $"{bigLine}<br><size=50%>{smallLine}</size>";
+
+        const float fadeDur = 0.35f;
+        yield return FadeGroup(levelTransitionPanel, 0f, 1f, fadeDur);
+
+        if (levelTransitionText)
+            yield return StartCoroutine(PunchScale(levelTransitionText.transform, 1.15f, 0.25f));
+
+        float holdDur = Mathf.Max(0f, duration - fadeDur * 2f - 0.25f);
+        yield return new WaitForSeconds(holdDur);
+
+        yield return FadeGroup(levelTransitionPanel, 1f, 0f, fadeDur);
+    }
+
+    IEnumerator FadeGroup(CanvasGroup group, float from, float to, float duration)
+    {
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            group.alpha = Mathf.Lerp(from, to, t / duration);
+            yield return null;
+        }
+        group.alpha = to;
+    }
+
     public void UpdateAdCountdown(int secs)
     {
         if (overlayText && overlayPanel != null && overlayPanel.activeSelf)
@@ -235,13 +278,13 @@ public class HUDController : MonoBehaviour
         t.localScale = Vector3.one;
     }
 
-    IEnumerator BlinkLabel(TextMeshProUGUI label, Color color)
+    IEnumerator BlinkIcon(Image icon)
     {
         while (true)
         {
-            label.color = color;
+            icon.color = colorDanger;
             yield return new WaitForSeconds(0.28f);
-            label.color = Color.clear;
+            icon.color = new Color(colorDanger.r, colorDanger.g, colorDanger.b, 0.15f);
             yield return new WaitForSeconds(0.22f);
         }
     }

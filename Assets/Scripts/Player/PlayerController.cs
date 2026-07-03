@@ -61,6 +61,8 @@ public class PlayerController : MonoBehaviour
         _queuedDir   = Vector2.zero;
         _currentSpeed = baseSpeed;
 
+        GetComponent<DissolveEffect>()?.ResetVisual();
+
         SnapToGrid();
         _stateManager?.SetState(PlayerState.Normal);
 
@@ -238,7 +240,14 @@ public class PlayerController : MonoBehaviour
 
     IEnumerator DeathSequence()
     {
-        yield return new WaitForSeconds(1.2f);
+        // Brief flash beat before the sprite breaks apart, matching the hit-stop/shake.
+        yield return new WaitForSeconds(0.2f);
+
+        var dissolve = GetComponent<DissolveEffect>();
+        if (dissolve == null) dissolve = gameObject.AddComponent<DissolveEffect>();
+        yield return StartCoroutine(dissolve.Dissolve(0.7f, new Color(1f, 0.3f, 0.56f, 1f)));
+
+        yield return new WaitForSeconds(0.3f);
         GameManager.Instance?.PlayerDied();
     }
 

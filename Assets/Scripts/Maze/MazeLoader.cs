@@ -11,12 +11,14 @@ public class MazeLoader : MonoBehaviour
     [SerializeField] Tilemap wallTilemap;
     [SerializeField] Tilemap floorTilemap;
     [SerializeField] Tilemap malusTilemap;
+    [SerializeField] Tilemap hideTilemap;
 
     [Header("Tiles")]
     [SerializeField] TileBase[] wallTiles;   // 11 entries: H,V,TL,TR,BL,BR,T_TOP,T_BOT,T_LEFT,T_RIGHT,CROSS
     [SerializeField] TileBase tileFloorPlain;
     [SerializeField] TileBase tileFloorFeed;
     [SerializeField] TileBase tileMalus;
+    [SerializeField] TileBase tileHideAlcove;
 
     [Header("Maze Layouts (A–E)")]
     [SerializeField] MazeData[] layouts;    // assign 5 assets in Inspector
@@ -43,6 +45,10 @@ public class MazeLoader : MonoBehaviour
     HashSet<Vector2Int> _widgetCells  = new();
     bool[,] _walkable;
 
+    // Dead-end floor cells (exactly one walkable neighbor) — niches where the player
+    // can duck out of sight. Recomputed each level load; enemies query this statically.
+    public static HashSet<Vector2Int> HideCells { get; private set; } = new();
+
     void Start() => LoadLevel();
 
     public void LoadLevel()
@@ -54,6 +60,7 @@ public class MazeLoader : MonoBehaviour
         ClearAll();
         OpenTunnelCells();
         BuildWalkabilityGrid();
+        ComputeHideCells();
         FindWidgetZones();
         PlaceTiles();
         ApplySmartphoneTheme();
@@ -84,6 +91,30 @@ public class MazeLoader : MonoBehaviour
     }
 
     public bool[,] GetWalkabilityGrid() => _walkable;
+
+    // A dead-end floor cell (exactly one walkable orthogonal neighbor) reads as a niche
+    // just off a corridor — a spot the player can duck into to break an enemy's line of sight.
+    void ComputeHideCells()
+    {
+        var cells = new HashSet<Vector2Int>();
+        for (int y = 0; y < MazeData.Height; y++)
+        {
+            if (y == MazeData.TunnelRow) continue; // tunnel exits look like dead ends but aren't
+            for (int x = 0; x < MazeData.Width; x++)
+            {
+                if (!_walkable[x, y]) continue;
+
+                int neighbors = 0;
+                if (x > 0                  && _walkable[x - 1, y]) neighbors++;
+                if (x < MazeData.Width - 1  && _walkable[x + 1, y]) neighbors++;
+                if (y > 0                  && _walkable[x, y - 1]) neighbors++;
+                if (y < MazeData.Height - 1 && _walkable[x, y + 1]) neighbors++;
+
+                if (neighbors == 1) cells.Add(new Vector2Int(x, y));
+            }
+        }
+        HideCells = cells;
+    }
 
     // ── Smartphone theme ──────────────────────────────────────────
 
@@ -126,6 +157,7 @@ public class MazeLoader : MonoBehaviour
         wallTilemap.ClearAllTiles();
         floorTilemap.ClearAllTiles();
         malusTilemap.ClearAllTiles();
+        if (hideTilemap != null) hideTilemap.ClearAllTiles();
 
         foreach (Transform t in transform)
             if (t.CompareTag("Collectible") || t.CompareTag("Enemy"))
@@ -225,6 +257,10 @@ public class MazeLoader : MonoBehaviour
                     // 20% chance of feed-style floor
                     bool isFeed = Random.value < 0.2f;
                     floorTilemap.SetTile(cell, isFeed ? tileFloorFeed : tileFloorPlain);
+
+                    if (hideTilemap != null && tileHideAlcove != null &&
+                        HideCells.Contains(new Vector2Int(x, y)))
+                        hideTilemap.SetTile(cell, tileHideAlcove);
 
                     if (_data.GetMalus(x, y) == 1)
                     {
