@@ -69,7 +69,7 @@ public class PlayerStateManager : MonoBehaviour
                 glitchParticles.Stop();
         }
 
-        if (_anim != null) _anim.SetInteger(AnimState, (int)_current);
+        if (_anim != null && _anim.runtimeAnimatorController != null) _anim.SetInteger(AnimState, (int)_current);
 
         // Sprite override when no animator handles it
         if (_sr != null)

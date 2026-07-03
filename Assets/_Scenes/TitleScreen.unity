@@ -620,12 +620,28 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AudioManager
   musicSource: {fileID: 695152237}
   sfxSource: {fileID: 67061552}
-  trackAmbient: {fileID: 0}
-  trackTension: {fileID: 0}
-  trackOverload: {fileID: 0}
-  trackClone: {fileID: 0}
-  trackEndScreen: {fileID: 0}
-  sfxEntries: []
+  trackAmbient: {fileID: 8300000, guid: 3697893526014d3d8e31fc7a9e256e3c, type: 3}
+  trackTension: {fileID: 8300000, guid: eae2d2b9e918470cb1fc44841f9ab7db, type: 3}
+  trackOverload: {fileID: 8300000, guid: 3371a00d83524a71ae8bad25d008d08f, type: 3}
+  trackClone: {fileID: 8300000, guid: 4fd7804663cf41a4a252bc58b9ddb190, type: 3}
+  trackEndScreen: {fileID: 8300000, guid: eb17186f18814d21b105ca80a02cffd6, type: 3}
+  sfxEntries:
+  - key: malus_hit
+    clip: {fileID: 8300000, guid: c09f106c8c2c4dc8b67882ea8032d2e5, type: 3}
+  - key: player_death
+    clip: {fileID: 8300000, guid: 6886f8c491f24bc98aea89095445601b, type: 3}
+  - key: like_consume
+    clip: {fileID: 8300000, guid: 21c28beb9ede4023a972f598d5fb173a, type: 3}
+  - key: enemy_return
+    clip: {fileID: 8300000, guid: 6cdbc7381bfd46a8a83d0e5bcc349405, type: 3}
+  - key: popup_appear
+    clip: {fileID: 8300000, guid: ea76211f59a1418091008ba19dfc971e, type: 3}
+  - key: autoplay
+    clip: {fileID: 8300000, guid: 9b2a928cc82d4fec9eefc6d34e50cf3c, type: 3}
+  - key: notif_slide
+    clip: {fileID: 8300000, guid: 9986627ec9e44be4ac9593d3455f45ce, type: 3}
+  - key: trending
+    clip: {fileID: 8300000, guid: 8027b94a5256499c8852a819cb5ee352, type: 3}
 --- !u!4 &876350381
 Transform:
   m_ObjectHideFlags: 0

@@ -349,7 +349,8 @@ public class MazeLoader : MonoBehaviour
                 _data.enemySpawns[i],
                 diff.EnemySpeed,
                 diff.ScatterDuration,
-                diff.Anticipate);
+                diff.Anticipate,
+                i);
             _enemyInstances.Add(go);
         }
     }

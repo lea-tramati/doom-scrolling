@@ -17,6 +17,8 @@ public class CameraFollow : MonoBehaviour
 
     Camera _cam;
     bool   _snapNextFrame;   // set by PlayerController when tunnel teleport fires
+    Vector3 _basePosition;   // follow position before shake is applied
+    Vector3 _shakeOffset;
 
     public static CameraFollow Instance { get; private set; }
 
@@ -25,6 +27,7 @@ public class CameraFollow : MonoBehaviour
         Instance = this;
         _cam = GetComponent<Camera>();
         _cam.orthographicSize = orthographicSize;
+        _basePosition = transform.position;
     }
 
     void LateUpdate()
@@ -47,20 +50,57 @@ public class CameraFollow : MonoBehaviour
 
         float tx = Mathf.Clamp(target.position.x, clampMinX, clampMaxX);
         float ty = Mathf.Clamp(target.position.y, clampMinY, clampMaxY);
-        Vector3 desired = new Vector3(tx, ty, transform.position.z);
+        Vector3 desired = new Vector3(tx, ty, _basePosition.z);
 
         if (_snapNextFrame)
         {
-            transform.position = desired;   // instant snap after tunnel warp
+            _basePosition  = desired;   // instant snap after tunnel warp
             _snapNextFrame = false;
         }
         else
         {
-            transform.position = Vector3.Lerp(transform.position, desired,
+            _basePosition = Vector3.Lerp(_basePosition, desired,
                 smoothSpeed * Time.deltaTime);
         }
+
+        transform.position = _basePosition + _shakeOffset;
     }
 
     // Called by PlayerController when the player warps through a tunnel
     public void SnapOnce() => _snapNextFrame = true;
+
+    // ── Game-feel juice ──────────────────────────────────────────
+    public void Shake(float duration, float magnitude)
+    {
+        StopCoroutine(nameof(ShakeRoutine));
+        StartCoroutine(ShakeRoutine(duration, magnitude));
+    }
+
+    IEnumerator ShakeRoutine(float duration, float magnitude)
+    {
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+            float damper = 1f - Mathf.Clamp01(t / duration);
+            _shakeOffset = (Vector3)(Random.insideUnitCircle * magnitude * damper);
+            yield return null;
+        }
+        _shakeOffset = Vector3.zero;
+    }
+
+    // Brief slow-motion punch on impact moments. Uses unscaled wait so it
+    // still resolves correctly while Time.timeScale is held near zero.
+    public void HitStop(float duration, float slowScale = 0.02f)
+    {
+        StopCoroutine(nameof(HitStopRoutine));
+        StartCoroutine(HitStopRoutine(duration, slowScale));
+    }
+
+    IEnumerator HitStopRoutine(float duration, float slowScale)
+    {
+        Time.timeScale = slowScale;
+        yield return new WaitForSecondsRealtime(duration);
+        Time.timeScale = 1f;
+    }
 }

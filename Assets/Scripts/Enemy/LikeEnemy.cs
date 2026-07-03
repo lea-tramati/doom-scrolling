@@ -28,6 +28,14 @@ public class LikeEnemy : MonoBehaviour
     float _scatterSeconds = 5f;   // from DifficultyConfig.ScatterDuration
     bool  _anticipate     = false; // from DifficultyConfig.Anticipate
 
+    // ── Personality (set by MazeLoader via Init, one per spawn slot) ─
+    // Chaser: targets the player directly (Blinky-style)
+    // Ambusher: targets 4 tiles ahead of the player's facing direction (Pinky-style)
+    // Flanker: targets the point mirroring the player through this enemy's scatter corner (Inky-style)
+    // Skittish: chases only within 6 tiles, otherwise retreats to its scatter corner (Clyde-style)
+    enum Personality { Chaser, Ambusher, Flanker, Skittish }
+    Personality _personality = Personality.Chaser;
+
     // ── State machine ──────────────────────────────────────────────
     enum EnemyState { Chase, Scatter, Frightened, Clone, Respawning }
     EnemyState _state = EnemyState.Scatter;
@@ -59,7 +67,8 @@ public class LikeEnemy : MonoBehaviour
     public bool IsRespawning  => _state == EnemyState.Respawning;
 
     public void Init(bool[,] walkabilityGrid, Vector2Int spawnCell,
-                     float diffSpeedMult = 1f, float scatterDuration = 5f, bool anticipate = false)
+                     float diffSpeedMult = 1f, float scatterDuration = 5f, bool anticipate = false,
+                     int personalityIndex = 0)
     {
         _walkable       = walkabilityGrid;
         _spawnCell      = spawnCell;
@@ -67,6 +76,7 @@ public class LikeEnemy : MonoBehaviour
         _diffSpeedMult  = diffSpeedMult;
         _scatterSeconds = scatterDuration;
         _anticipate     = anticipate;
+        _personality    = (Personality)(personalityIndex % 4);
 
         _pathfinder    = GetComponent<EnemyPathfinder>();
         _pathfinder.Init(_walkable);
@@ -167,13 +177,40 @@ public class LikeEnemy : MonoBehaviour
                 return scatterTarget;
             case EnemyState.Chase:
             case EnemyState.Clone:
-                return player != null ? player.GridPos : scatterTarget;
+                return player != null ? GetPersonalityTarget(player) : scatterTarget;
             case EnemyState.Scatter:
                 return scatterTarget;
             case EnemyState.Respawning:
                 return _spawnCell;
             default:
                 return scatterTarget;
+        }
+    }
+
+    // Blinky/Pinky/Inky/Clyde-style targeting so the 4 enemies don't all behave identically.
+    Vector2Int GetPersonalityTarget(PlayerController player)
+    {
+        Vector2Int playerCell = player.GridPos;
+
+        switch (_personality)
+        {
+            case Personality.Ambusher:
+            {
+                Vector2Int dir = new Vector2Int((int)player.MoveDir.x, -(int)player.MoveDir.y);
+                return new Vector2Int(
+                    Mathf.Clamp(playerCell.x + dir.x * 4, 0, MazeData.Width - 1),
+                    Mathf.Clamp(playerCell.y + dir.y * 4, 0, MazeData.Height - 1));
+            }
+            case Personality.Flanker:
+                // Mirrors the player through this enemy's scatter corner — approaches from the opposite side.
+                return new Vector2Int(
+                    Mathf.Clamp(2 * playerCell.x - scatterTarget.x, 0, MazeData.Width - 1),
+                    Mathf.Clamp(2 * playerCell.y - scatterTarget.y, 0, MazeData.Height - 1));
+            case Personality.Skittish:
+                // Only chases at close range, otherwise retreats — keeps some breathing room open.
+                return Vector2Int.Distance(_gridPos, playerCell) > 6f ? scatterTarget : playerCell;
+            default: // Chaser
+                return playerCell;
         }
     }
 
@@ -263,7 +300,7 @@ public class LikeEnemy : MonoBehaviour
         transform.position = GridToWorld(_spawnCell);
 
         // Clignotement d'apparition (4 flashs)
-        _anim.SetTrigger(AnimRespawn);
+        if (_anim && _anim.runtimeAnimatorController) _anim.SetTrigger(AnimRespawn);
         for (int i = 0; i < 4; i++)
         {
             _sr.enabled = true;
@@ -331,7 +368,7 @@ public class LikeEnemy : MonoBehaviour
         if (_state == EnemyState.Frightened || _state == EnemyState.Clone ||
             _state == EnemyState.Respawning) return;
 
-        if (_anim) _anim.SetFloat(AnimSpeed, m);
+        if (_anim && _anim.runtimeAnimatorController) _anim.SetFloat(AnimSpeed, m);
 
         if (_sr)
         {
@@ -345,7 +382,8 @@ public class LikeEnemy : MonoBehaviour
     {
         bool wasClone = _state == EnemyState.Clone;
         _state = s;
-        if (_anim) _anim.SetBool(AnimFrightened, s == EnemyState.Frightened || s == EnemyState.Clone);
+        if (_anim && _anim.runtimeAnimatorController)
+            _anim.SetBool(AnimFrightened, s == EnemyState.Frightened || s == EnemyState.Clone);
 
         if (s != EnemyState.Clone)
         {

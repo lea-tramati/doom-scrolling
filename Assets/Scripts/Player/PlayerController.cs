@@ -30,6 +30,7 @@ public class PlayerController : MonoBehaviour
     // ── References ────────────────────────────────────────────────
     PlayerStateManager _stateManager;
     Animator           _anim;
+    bool               _hasAnimController;
 
     static readonly int AnimDirX  = Animator.StringToHash("DirX");
     static readonly int AnimDirY  = Animator.StringToHash("DirY");
@@ -40,8 +41,9 @@ public class PlayerController : MonoBehaviour
 
     void Awake()
     {
-        _anim         = GetComponent<Animator>();
-        _stateManager = GetComponent<PlayerStateManager>();
+        _anim              = GetComponent<Animator>();
+        _hasAnimController = _anim != null && _anim.runtimeAnimatorController != null;
+        _stateManager      = GetComponent<PlayerStateManager>();
     }
 
     public void Init(bool[,] walkabilityGrid)
@@ -169,8 +171,11 @@ public class PlayerController : MonoBehaviour
         float elapsed  = 0f;
         float duration = 1f / speed;
 
-        _anim.SetFloat(AnimDirX, dir.x);
-        _anim.SetFloat(AnimDirY, dir.y);
+        if (_hasAnimController)
+        {
+            _anim.SetFloat(AnimDirX, dir.x);
+            _anim.SetFloat(AnimDirY, dir.y);
+        }
 
         while (elapsed < duration)
         {
@@ -198,7 +203,7 @@ public class PlayerController : MonoBehaviour
     IEnumerator MalusCoroutine()
     {
         _malusActive = true;
-        _anim.SetTrigger(AnimMalus);
+        if (_hasAnimController) _anim.SetTrigger(AnimMalus);
         yield return new WaitForSeconds(malusDuration);
         _malusActive = false;
         _stateManager?.RefreshStateFromSpeed();
@@ -224,8 +229,10 @@ public class PlayerController : MonoBehaviour
         if (_isDead) return;
         _isDead   = true;
         _isMoving = false;
-        _anim.SetTrigger(AnimDeath);
+        if (_hasAnimController) _anim.SetTrigger(AnimDeath);
         AudioManager.Instance?.PlaySFX("player_death");
+        CameraFollow.Instance?.Shake(0.35f, 0.18f);
+        CameraFollow.Instance?.HitStop(0.06f);
         StartCoroutine(DeathSequence());
     }
 
@@ -257,6 +264,7 @@ public class PlayerController : MonoBehaviour
                     new Color(0f, 0.96f, 1f));
                 AudioManager.Instance?.PlaySFX("like_consume");
                 NotificationManager.Instance?.TriggerNotification("CONTENT SHARED", "clone");
+                CameraFollow.Instance?.Shake(0.15f, 0.06f);
             }
             else if (!enemy.IsFrightened && !enemy.IsRespawning)
             {

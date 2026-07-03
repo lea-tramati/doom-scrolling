@@ -11,7 +11,7 @@ public class HazardManager : MonoBehaviour
     [SerializeField] GameObject autoPlayPrefab;
     [SerializeField] GameObject trendingTrapPrefab;
 
-    [Header("Config")]
+    [Header("Config (fallback if no GameManager/DifficultyConfig — see DifficultyConfig.HazardMin/MaxInterval/Count for per-level scaling)")]
     [SerializeField] float minInterval    = 45f;
     [SerializeField] float maxInterval    = 90f;
     [SerializeField] int   maxSimultaneous = 3;
@@ -29,16 +29,30 @@ public class HazardManager : MonoBehaviour
     {
         while (true)
         {
-            yield return new WaitForSeconds(Random.Range(minInterval, maxInterval));
+            var tier = CurrentTier();
+            yield return new WaitForSeconds(Random.Range(tier.HazardMinInterval, tier.HazardMaxInterval));
 
             if (GameManager.Instance == null || !GameManager.Instance.IsPlaying) continue;
 
             // Cleanup destroyed hazards
             _active.RemoveAll(g => g == null);
-            if (_active.Count >= maxSimultaneous) continue;
+            if (_active.Count >= CurrentTier().HazardMaxCount) continue;
 
             SpawnRandomHazard();
         }
+    }
+
+    // Falls back to the serialized defaults when no GameManager is present (e.g. isolated scene testing).
+    DifficultyConfig.Tier CurrentTier()
+    {
+        if (GameManager.Instance == null)
+            return new DifficultyConfig.Tier
+            {
+                HazardMinInterval = minInterval,
+                HazardMaxInterval = maxInterval,
+                HazardMaxCount    = maxSimultaneous
+            };
+        return DifficultyConfig.Get(GameManager.Instance.Level);
     }
 
     void SpawnRandomHazard()
