@@ -76,9 +76,9 @@ public static class PauseMenuSetup
         Button refPlayAgain = null, refTitle = null, refQuit = null;
         foreach (var root in goScene.GetRootGameObjects())
         {
-            var controller = root.GetComponentInChildren<GameOverScreenController>(true);
-            if (controller == null) continue;
-            var so = new SerializedObject(controller);
+            var goController = root.GetComponentInChildren<GameOverScreenController>(true);
+            if (goController == null) continue;
+            var so = new SerializedObject(goController);
             refPlayAgain = so.FindProperty("playAgainBtn")?.objectReferenceValue as Button;
             refTitle     = so.FindProperty("titleBtn")?.objectReferenceValue as Button;
             refQuit      = so.FindProperty("quitBtn")?.objectReferenceValue as Button;

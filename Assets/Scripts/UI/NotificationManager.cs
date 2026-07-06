@@ -60,7 +60,10 @@ public class NotificationManager : MonoBehaviour
         { "like",   "INSTAGRAM" },
     };
 
-    readonly Queue<(string text, string app)> _queue = new();
+    // Gameplay feedback (malus/clone/hint) must never wait behind a random ambient
+    // notification — it always jumps the queue ahead of flavor content.
+    readonly Queue<(string text, string app)> _priorityQueue = new();
+    readonly Queue<(string text, string app)> _ambientQueue  = new();
     bool _showing;
 
     Image           _iconBg;
@@ -83,23 +86,18 @@ public class NotificationManager : MonoBehaviour
     public void TriggerNotification(string text, string iconKey)
     {
         string app = IconKeyToApp.TryGetValue(iconKey, out var a) ? a : "ALERTS";
-        Enqueue(text, app);
+        _priorityQueue.Enqueue((text, app));
+        if (!_showing) StartCoroutine(ProcessQueue());
     }
 
     // ── Queue & slide ─────────────────────────────────────────────
 
-    void Enqueue(string text, string app)
-    {
-        _queue.Enqueue((text, app));
-        if (!_showing) StartCoroutine(ProcessQueue());
-    }
-
     IEnumerator ProcessQueue()
     {
-        while (_queue.Count > 0)
+        while (_priorityQueue.Count > 0 || _ambientQueue.Count > 0)
         {
             _showing = true;
-            var (text, app) = _queue.Dequeue();
+            var (text, app) = _priorityQueue.Count > 0 ? _priorityQueue.Dequeue() : _ambientQueue.Dequeue();
             string displayApp = string.IsNullOrEmpty(app) ? "DOOM·SCROLL" : app;
 
             if (notifLabel) notifLabel.text = text;
@@ -155,6 +153,11 @@ public class NotificationManager : MonoBehaviour
             yield return new WaitForSeconds(Random.Range(minInterval, maxInterval));
             if (GameManager.Instance == null || !GameManager.Instance.IsPlaying) continue;
 
+            // Skip ambient flavor notifications while the engagement bar is in its danger
+            // zone (same 0.67 threshold as HUDController's pulse) — don't stack UI on top
+            // of a moment that already demands the player's full attention.
+            if (SpeedSystem.Instance != null && SpeedSystem.Instance.NormalizedSpeed >= 0.67f) continue;
+
             int lvl   = GameManager.Instance.Level;
             int score = GameManager.Instance.Score;
             int min   = (int)(GameManager.Instance.SessionTimer / 60);
@@ -169,7 +172,8 @@ public class NotificationManager : MonoBehaviour
                 3 => $"{min} min scrolled",
                 _ => $"New Followers: +{GameManager.Instance.AppIconsThisLevel * 10}"
             };
-            Enqueue(text, apps[pick]);
+            _ambientQueue.Enqueue((text, apps[pick]));
+            if (!_showing) StartCoroutine(ProcessQueue());
         }
     }
 

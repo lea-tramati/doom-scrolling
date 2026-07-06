@@ -19,12 +19,14 @@ public class GameOverScreenController : MonoBehaviour
 
     // Rotates so the guilt-trip line doesn't read as a canned reprimand on every replay —
     // by the 4th+ visit it drops the lecture and just gives you the number back.
+    // {0} is GameManager.FormattedTime() (MM:SS) — most sessions last seconds, not
+    // hours, so a decimal-hours readout ("0.0 hours") always rounded down to nothing.
     static readonly string[] GuiltLines =
     {
-        "\n\nYou played for {0:0.0} hours. Maybe it's time to unplug",
-        "\n\n{0:0.0} hours, gone. The feed doesn't miss you back",
-        "\n\nThat's {0:0.0} hours you're not getting back",
-        "\n\nSession length: {0:0.0}h. No judgment. (Some judgment.)",
+        "\n\nYou played for {0}. Maybe it's time to unplug",
+        "\n\n{0}, gone. The feed doesn't miss you back",
+        "\n\nThat's {0} you're not getting back",
+        "\n\nSession length: {0}. No judgment. (Some judgment.)",
     };
 
     int _finalScore;
@@ -61,11 +63,11 @@ public class GameOverScreenController : MonoBehaviour
 
         yield return new WaitForSeconds(0.5f);
 
-        float hours = (GameManager.Instance?.SessionTimer ?? 0f) / 3600f;
+        string timeStr = GameManager.Instance?.FormattedTime() ?? "00:00";
         int visitCount = PlayerPrefs.GetInt(PLAY_COUNT_KEY, 0);
         PlayerPrefs.SetInt(PLAY_COUNT_KEY, visitCount + 1);
         if (sessionEndedLabel)
-            sessionEndedLabel.text += string.Format(GuiltLines[visitCount % GuiltLines.Length], hours);
+            sessionEndedLabel.text += string.Format(GuiltLines[visitCount % GuiltLines.Length], timeStr);
 
         yield return new WaitForSeconds(0.3f);
 
