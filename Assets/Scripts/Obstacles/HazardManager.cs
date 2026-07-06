@@ -28,7 +28,7 @@ public class HazardManager : MonoBehaviour
     void Start()
     {
         _loader = FindObjectOfType<MazeLoader>();
-        _player = Object.FindAnyObjectByType<PlayerController>();
+        _player = PlayerController.Instance;
         StartCoroutine(SpawnLoop());
     }
 

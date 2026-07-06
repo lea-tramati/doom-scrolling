@@ -8,6 +8,10 @@ using System.Collections;
 [RequireComponent(typeof(Animator))]
 public class PlayerController : MonoBehaviour
 {
+    // Per-scene singleton (recreated on every scene load along with the maze, same as
+    // CameraFollow) — lets enemies/hazards grab the player without a scene-wide search.
+    public static PlayerController Instance { get; private set; }
+
     // ── Config ────────────────────────────────────────────────────
     [SerializeField] float baseSpeed    = 5f;   // tiles per second
     [SerializeField] float malusSpeed   = 2.5f;
@@ -50,6 +54,7 @@ public class PlayerController : MonoBehaviour
 
     void Awake()
     {
+        Instance           = this;
         _anim              = GetComponent<Animator>();
         _hasAnimController = _anim != null && _anim.runtimeAnimatorController != null;
         _stateManager      = GetComponent<PlayerStateManager>();

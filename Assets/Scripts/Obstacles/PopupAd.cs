@@ -20,7 +20,7 @@ public class PopupAd : MonoBehaviour
 
         // The solid blocker leaves the player no way to dodge — grant invincibility for
         // the whole block so a badly-timed spawn near an enemy can't force an unavoidable hit.
-        Object.FindAnyObjectByType<PlayerController>()?.GetComponent<DamageFlash>()?.StartInvincibility(lifetime);
+        PlayerController.Instance?.GetComponent<DamageFlash>()?.StartInvincibility(lifetime);
 
         StartCoroutine(Countdown());
     }

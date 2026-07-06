@@ -108,7 +108,7 @@ public class CollectibleItem : MonoBehaviour
         foreach (var enemy in Object.FindObjectsByType<LikeEnemy>(FindObjectsSortMode.None))
             enemy.EnterClone();
 
-        Object.FindAnyObjectByType<PlayerController>()?.ActivatePowerMode(cloneDuration);
+        PlayerController.Instance?.ActivatePowerMode(cloneDuration);
 
         AudioManager.Instance?.PlayClonePhaseMusic();
         HUDController.Instance?.ShowOverlay("YOU ARE THE CONTENT", 8f, glitchStyle: true);

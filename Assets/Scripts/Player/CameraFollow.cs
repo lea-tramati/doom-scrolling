@@ -35,7 +35,7 @@ public class CameraFollow : MonoBehaviour
     {
         if (target == null)
         {
-            var pc = Object.FindAnyObjectByType<PlayerController>();
+            var pc = PlayerController.Instance;
             if (pc != null) target = pc.transform;
             else return;
         }

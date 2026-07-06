@@ -81,7 +81,12 @@ public class AudioManager : MonoBehaviour
     public void PlaySFX(string key)
     {
         if (_sfxMap.TryGetValue(key, out var clip))
+        {
+            // Slight random pitch per play — the dot pickup sound alone can fire dozens of
+            // times a level; identical pitch every time reads as a repetitive machine-gun.
+            sfxSource.pitch = Random.Range(0.95f, 1.05f);
             sfxSource.PlayOneShot(clip);
+        }
     }
 
     public void PlayMusic(AudioClip clip, bool loop = true)

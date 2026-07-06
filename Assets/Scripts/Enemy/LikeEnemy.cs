@@ -181,7 +181,7 @@ public class LikeEnemy : MonoBehaviour
     {
         _isMoving = true;
 
-        var player = Object.FindAnyObjectByType<PlayerController>();
+        var player = PlayerController.Instance;
         Vector2Int target = GetTarget(player);
 
         Vector2Int playerDir = player != null
@@ -361,7 +361,7 @@ public class LikeEnemy : MonoBehaviour
         if (_state == EnemyState.Respawning) return;
 
         // Mémoriser le SpriteRenderer du joueur pour le copier en LateUpdate
-        var player = Object.FindAnyObjectByType<PlayerController>();
+        var player = PlayerController.Instance;
         _playerSpriteRef = player != null ? player.GetComponent<SpriteRenderer>() : null;
 
         StopAllCoroutines();
