@@ -7,7 +7,7 @@ Shader "Custom/SpriteDissolve"
         _DissolveAmount ("Dissolve Amount", Range(0,1)) = 0
         _EdgeColor ("Edge Color", Color) = (1,1,1,1)
         _EdgeWidth ("Edge Width", Range(0,0.3)) = 0.08
-        _NoiseScale ("Noise Scale", Float) = 40
+        _NoiseScale ("Pixel Grid Resolution", Float) = 16
     }
     SubShader
     {
@@ -60,28 +60,22 @@ Shader "Custom/SpriteDissolve"
                 return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453123);
             }
 
-            float valueNoise(float2 p)
-            {
-                float2 i = floor(p);
-                float2 f = frac(p);
-                float a = hash21(i);
-                float b = hash21(i + float2(1, 0));
-                float c = hash21(i + float2(0, 1));
-                float d = hash21(i + float2(1, 1));
-                float2 u = f * f * (3.0 - 2.0 * f);
-                return lerp(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
-            }
-
+            // Chunky pixel-block dissolve: each cell of a coarse grid (matching
+            // the sprite's own low-res pixel-art scale) pops fully in or out —
+            // no smooth/organic blending — so the sprite breaks apart into
+            // discrete pixel blocks instead of dissolving like a soft cloud.
             float4 frag(Varyings IN) : SV_Target
             {
                 float4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv);
                 float4 col = tex * _Color * IN.color;
 
-                float n = valueNoise(IN.uv * _NoiseScale);
+                float2 cell = floor(IN.uv * _NoiseScale);
+                float n = hash21(cell);
                 clip(n - _DissolveAmount);
 
-                float edge = smoothstep(0.0, _EdgeWidth, n - _DissolveAmount);
-                col.rgb = lerp(_EdgeColor.rgb, col.rgb, edge);
+                // Blocks about to vanish flash the edge color for one step.
+                float aboutToVanish = (n - _DissolveAmount < _EdgeWidth) ? 1.0 : 0.0;
+                col.rgb = lerp(col.rgb, _EdgeColor.rgb, aboutToVanish);
 
                 return col;
             }

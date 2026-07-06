@@ -19,15 +19,17 @@ public static class GameplayVisualSetup
     const string CTRL_PATH   = "Assets/_Anim/Player.controller";
     const string CLIP_DIR    = "Assets/_Anim/Clips";
 
-    // ── Row order in User-walk-v2.png ──────────────────────────────
+    // ── Row order in the chibi spritesheet (GenerateChibiCharacters.ps1) ──
     // Row 0 = walk Down, Row 1 = walk Left, Row 2 = walk Right, Row 3 = walk Up
-    // Row 4 = death / malus (plays once then freezes)
-    const int FRAMES        = 5;
+    // Row 4 = death (plays once then freezes), Row 5 = idle (blink loop)
+    const int FRAMES        = 8;
+    const int ROWS          = 6;
     const int ROW_DOWN      = 0;
     const int ROW_LEFT      = 1;
     const int ROW_RIGHT     = 2;
     const int ROW_UP        = 3;
     const int ROW_DEATH     = 4;
+    const int ROW_IDLE      = 5;
     const float ANIM_FPS    = 8f;
 
     [MenuItem("Tools/Doom Scrolling/Setup Gameplay Visuals", priority = 2)]
@@ -42,9 +44,10 @@ public static class GameplayVisualSetup
         AssetDatabase.Refresh();
 
         var sprites = LoadSprites();
-        if (sprites == null || sprites.Length < 25)
+        int expected = FRAMES * ROWS;
+        if (sprites == null || sprites.Length < expected)
         {
-            Debug.LogError($"[Visuals] Expected 25 sprites from player sheet, got {sprites?.Length}. Aborting.");
+            Debug.LogError($"[Visuals] Expected {expected} sprites from player sheet, got {sprites?.Length}. Aborting.");
             return;
         }
 
@@ -80,9 +83,9 @@ public static class GameplayVisualSetup
         // Unity stores rect.y from bottom of texture
         // Frame 0 (row 0, col 0) is at top of image → in Unity coords: y = height - frameH
         // We'll use SpriteMetaData for explicit control
-        const int COLS = 5, ROWS = 5;
+        const int COLS = FRAMES;
         // We need texture size — read from metadata
-        int texW = 1280, texH = 1280;
+        int texW = 256 * COLS, texH = 256 * ROWS;
         int fW = texW / COLS;
         int fH = texH / ROWS;
 
@@ -109,10 +112,10 @@ public static class GameplayVisualSetup
         imp.spritesheet = metas;
         imp.SaveAndReimport();
 
-        Debug.Log("[Visuals] Player spritesheet reimported at 256 PPU, 25 sprites.");
+        Debug.Log($"[Visuals] Player spritesheet reimported at 256 PPU, {COLS * ROWS} sprites.");
     }
 
-    // ── 2. Load all 25 sprites in order ─────────────────────────────
+    // ── 2. Load all sprites in order ─────────────────────────────
     static Sprite[] LoadSprites()
     {
         return AssetDatabase.LoadAllAssetsAtPath(SHEET_PATH)
@@ -129,10 +132,11 @@ public static class GameplayVisualSetup
         var controller = AnimatorController.CreateAnimatorControllerAtPath(CTRL_PATH);
 
         // Parameters
-        controller.AddParameter("DirX",  AnimatorControllerParameterType.Float);
-        controller.AddParameter("DirY",  AnimatorControllerParameterType.Float);
-        controller.AddParameter("Death", AnimatorControllerParameterType.Trigger);
-        controller.AddParameter("Malus", AnimatorControllerParameterType.Trigger);
+        controller.AddParameter("DirX",   AnimatorControllerParameterType.Float);
+        controller.AddParameter("DirY",   AnimatorControllerParameterType.Float);
+        controller.AddParameter("Moving", AnimatorControllerParameterType.Bool);
+        controller.AddParameter("Death",  AnimatorControllerParameterType.Trigger);
+        controller.AddParameter("Malus",  AnimatorControllerParameterType.Trigger);
 
         var sm = controller.layers[0].stateMachine;
 
@@ -143,6 +147,7 @@ public static class GameplayVisualSetup
         var clipUp    = MakeClip("Walk_Up",    sprites, ROW_UP,    FRAMES, true);
         var clipDeath = MakeClip("Death",      sprites, ROW_DEATH, FRAMES, false);
         var clipMalus = MakeClip("Malus",      sprites, ROW_DOWN,  FRAMES, true);
+        var clipIdle  = MakeIdleClip(sprites);
 
         // Walk blend tree (2D simple directional)
         BlendTree blendTree;
@@ -154,7 +159,12 @@ public static class GameplayVisualSetup
         blendTree.AddChild(clipLeft,  new Vector2(-1f,  0f));
         blendTree.AddChild(clipRight, new Vector2( 1f,  0f));
         blendTree.AddChild(clipUp,    new Vector2( 0f,  1f));
-        sm.defaultState = walkState;
+
+        // Idle state (blink loop) — default state, so the character starts idle
+        // rather than flashing a walk pose for one frame.
+        var idleState = sm.AddState("Idle");
+        idleState.motion = clipIdle;
+        sm.defaultState = idleState;
 
         // Death state
         var deathState = sm.AddState("Death");
@@ -166,13 +176,21 @@ public static class GameplayVisualSetup
         malusState.motion = clipMalus;
         malusState.speed  = 0.5f;  // half-speed when throttled
 
-        // Transitions: Walk → Death
-        var t1 = walkState.AddTransition(deathState);
+        // Idle <-> Walk, driven by whether the player is actually stepping.
+        var tIdleToWalk = idleState.AddTransition(walkState);
+        tIdleToWalk.hasExitTime = false; tIdleToWalk.duration = 0.05f;
+        tIdleToWalk.AddCondition(AnimatorConditionMode.If, 0, "Moving");
+
+        var tWalkToIdle = walkState.AddTransition(idleState);
+        tWalkToIdle.hasExitTime = false; tWalkToIdle.duration = 0.05f;
+        tWalkToIdle.AddCondition(AnimatorConditionMode.IfNot, 0, "Moving");
+
+        // Death/Malus can interrupt from any state (Idle or Walk), not just Walk.
+        var t1 = sm.AddAnyStateTransition(deathState);
         t1.hasExitTime = false; t1.duration = 0;
         t1.AddCondition(AnimatorConditionMode.If, 0, "Death");
 
-        // Transitions: Walk → Malus
-        var t2 = walkState.AddTransition(malusState);
+        var t2 = sm.AddAnyStateTransition(malusState);
         t2.hasExitTime = false; t2.duration = 0;
         t2.AddCondition(AnimatorConditionMode.If, 0, "Malus");
 
@@ -212,6 +230,37 @@ public static class GameplayVisualSetup
 
         var settings = AnimationUtility.GetAnimationClipSettings(clip);
         settings.loopTime = loop;
+        AnimationUtility.SetAnimationClipSettings(clip, settings);
+
+        AssetDatabase.CreateAsset(clip, path);
+        return clip;
+    }
+
+    // Idle row only has 2 live frames (open-eyes, blink) — custom keyframe
+    // timing so the character holds its eyes open for a while and only
+    // blinks briefly, instead of fluttering at the walk-cycle frame rate.
+    static AnimationClip MakeIdleClip(Sprite[] sprites)
+    {
+        string path = $"{CLIP_DIR}/Idle.anim";
+        if (File.Exists(path)) AssetDatabase.DeleteAsset(path);
+
+        var clip = new AnimationClip();
+        clip.frameRate = ANIM_FPS;
+        clip.name = "Idle";
+
+        var binding = EditorCurveBinding.PPtrCurve("", typeof(SpriteRenderer), "m_Sprite");
+        var openSprite   = sprites[ROW_IDLE * FRAMES + 0];
+        var closedSprite = sprites[ROW_IDLE * FRAMES + 1];
+        var keyframes = new[]
+        {
+            new ObjectReferenceKeyframe { time = 0f,    value = openSprite },
+            new ObjectReferenceKeyframe { time = 3.0f,  value = closedSprite },
+            new ObjectReferenceKeyframe { time = 3.15f, value = openSprite },
+        };
+        AnimationUtility.SetObjectReferenceCurve(clip, binding, keyframes);
+
+        var settings = AnimationUtility.GetAnimationClipSettings(clip);
+        settings.loopTime = true;
         AnimationUtility.SetAnimationClipSettings(clip, settings);
 
         AssetDatabase.CreateAsset(clip, path);
@@ -270,16 +319,22 @@ public static class GameplayVisualSetup
         // Center on maze (19×21 tiles, tiles start at world (0,0))
         camGO.transform.position = new Vector3(9.5f, 10.5f, -10f);
 
-        // Add CameraFit if not present
-        if (camGO.GetComponent<CameraFit>() == null)
-            camGO.AddComponent<CameraFit>();
-
-        // Set a good default orthographic size for Editor preview
-        var cam = camGO.GetComponent<Camera>();
-        if (cam != null) cam.orthographicSize = 11f;
+        // CameraFollow (if present) already owns runtime zoom with its own tuned
+        // orthographicSize — don't also add CameraFit alongside it. Both set
+        // orthographicSize in Awake(), whichever runs last wins the race, and
+        // CameraFit zooms out to fit the whole maze + HUD margins, making the
+        // maze render tiny compared to CameraFollow's intended "zoomed in" look.
+        var follow = camGO.GetComponent<CameraFollow>();
+        if (follow == null)
+        {
+            if (camGO.GetComponent<CameraFit>() == null)
+                camGO.AddComponent<CameraFit>();
+            var cam = camGO.GetComponent<Camera>();
+            if (cam != null) cam.orthographicSize = 11f;
+        }
 
         EditorSceneManager.SaveScene(scene);
-        Debug.Log("[Visuals] Camera centered and CameraFit added.");
+        Debug.Log("[Visuals] Camera centered.");
     }
 }
 #endif

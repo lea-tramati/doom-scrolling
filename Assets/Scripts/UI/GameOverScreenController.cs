@@ -11,6 +11,7 @@ public class GameOverScreenController : MonoBehaviour
     [SerializeField] TextMeshProUGUI totalScoreLabel;
     [SerializeField] Button          playAgainBtn;
     [SerializeField] Button          titleBtn;           // optional back-to-title button
+    [SerializeField] Button          quitBtn;
     [SerializeField] CanvasGroup     fadeGroup;
 
     const float TYPE_SPEED = 0.03f;
@@ -23,6 +24,13 @@ public class GameOverScreenController : MonoBehaviour
 
         if (playAgainBtn) { playAgainBtn.onClick.AddListener(OnPlayAgain); playAgainBtn.gameObject.SetActive(false); }
         if (titleBtn)     { titleBtn.onClick.AddListener(OnBackToTitle);   titleBtn.gameObject.SetActive(false); }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // Application.Quit() is a no-op in browsers; there's nothing useful for this button to do.
+        if (quitBtn) quitBtn.gameObject.SetActive(false);
+#else
+        if (quitBtn) { quitBtn.onClick.AddListener(OnQuit); quitBtn.gameObject.SetActive(false); }
+#endif
         if (totalScoreLabel) totalScoreLabel.text = "";
         if (sessionEndedLabel) sessionEndedLabel.text = "";
 
@@ -54,6 +62,9 @@ public class GameOverScreenController : MonoBehaviour
 
         if (playAgainBtn) playAgainBtn.gameObject.SetActive(true);
         if (titleBtn)     titleBtn.gameObject.SetActive(true);
+#if !(UNITY_WEBGL && !UNITY_EDITOR)
+        if (quitBtn)      quitBtn.gameObject.SetActive(true);
+#endif
     }
 
     IEnumerator FadeIn()
@@ -118,5 +129,13 @@ public class GameOverScreenController : MonoBehaviour
     void OnBackToTitle()
     {
         SceneManager.LoadScene("TitleScreen");
+    }
+
+    void OnQuit()
+    {
+        Application.Quit();
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#endif
     }
 }

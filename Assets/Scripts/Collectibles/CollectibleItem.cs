@@ -57,6 +57,7 @@ public class CollectibleItem : MonoBehaviour
             case CollectibleType.NotificationDot:
                 pts = 10; speedDelta = 0.01f; sfx = "notif_ping";
                 GameManager.Instance?.OnDotCollected();
+                GameManager.Instance?.ShowHintOnce("dot", "COLLECT DOTS FOR POINTS");
                 break;
 
             case CollectibleType.AppIcon_Snapchat:
@@ -64,7 +65,8 @@ public class CollectibleItem : MonoBehaviour
             case CollectibleType.AppIcon_TikTok:
             case CollectibleType.AppIcon_Twitter:
                 pts = 50; speedDelta = 0.05f; sfx = "app_collect";
-                GameManager.Instance?.OnAppIconCollected();
+                GameManager.Instance?.OnAppIconCollected(type);
+                GameManager.Instance?.ShowHintOnce("appicon", "APP ICONS = BIGGER BONUS");
                 int appCount = GameManager.Instance?.AppIconsThisLevel ?? 0;
                 NotificationManager.Instance?.TriggerNotification(
                     $"NEW FOLLOWERS: {appCount * 10}", "follow");
@@ -78,6 +80,7 @@ public class CollectibleItem : MonoBehaviour
 
             case CollectibleType.Smartphone:
                 pts = 200; speedDelta = 0f; sfx = "smartphone_trigger";
+                GameManager.Instance?.ShowHintOnce("phone", "GRAB THE PHONE TO EAT ENEMIES!");
                 TriggerClonePhase();
                 break;
         }
@@ -100,8 +103,12 @@ public class CollectibleItem : MonoBehaviour
 
     void TriggerClonePhase()
     {
+        const float cloneDuration = 8f; // must match LikeEnemy.CloneSequence's duration
+
         foreach (var enemy in Object.FindObjectsByType<LikeEnemy>(FindObjectsSortMode.None))
             enemy.EnterClone();
+
+        Object.FindAnyObjectByType<PlayerController>()?.ActivatePowerMode(cloneDuration);
 
         AudioManager.Instance?.PlayClonePhaseMusic();
         HUDController.Instance?.ShowOverlay("YOU ARE THE CONTENT", 8f);

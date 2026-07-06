@@ -361,11 +361,14 @@ public class MazeLoader : MonoBehaviour
             _playerInstance.transform.position = GridToWorld(_data.playerSpawn);
 
         _playerInstance.GetComponent<PlayerController>()?.Init(_walkable);
+        GameManager.Instance?.ShowHintOnce("move", "USE ARROWS / WASD TO MOVE");
     }
 
     void SpawnEnemies()
     {
         if (enemyPrefabs == null || _data.enemySpawns == null) return;
+
+        GameManager.Instance?.ShowHintOnce("enemy", "AVOID THE LIKE ENEMIES!");
 
         int level = GameManager.Instance?.Level ?? 1;
         var diff  = DifficultyConfig.Get(level);

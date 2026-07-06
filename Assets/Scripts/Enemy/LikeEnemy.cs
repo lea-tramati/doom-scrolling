@@ -47,6 +47,28 @@ public class LikeEnemy : MonoBehaviour
     };
     Color _baseColor = Color.white;
 
+    // Small silhouette marker per personality (spike/wings/tail/ears) so they
+    // read as visually distinct at a glance, not just by color tint.
+    static readonly string[] PersonalityIconNames = { "Spike", "Wings", "Tail", "Ears" };
+    SpriteRenderer _iconSr;
+
+    void SetupPersonalityIcon()
+    {
+        if (_iconSr == null)
+        {
+            var iconGO = new GameObject("PersonalityIcon");
+            iconGO.transform.SetParent(transform, false);
+            iconGO.transform.localPosition = new Vector3(0f, 0.32f, -0.01f);
+            iconGO.transform.localScale = Vector3.one * 0.5f;
+            _iconSr = iconGO.AddComponent<SpriteRenderer>();
+        }
+        var sprite = Resources.Load<Sprite>($"PersonalityAccessories/{PersonalityIconNames[(int)_personality]}");
+        if (sprite == null) return;
+        _iconSr.sprite = sprite;
+        _iconSr.color  = _baseColor;
+        if (_sr != null) _iconSr.sortingOrder = _sr.sortingOrder + 1;
+    }
+
     // ── State machine ──────────────────────────────────────────────
     enum EnemyState { Chase, Scatter, Frightened, Clone, Respawning }
     EnemyState _state = EnemyState.Scatter;
@@ -61,6 +83,13 @@ public class LikeEnemy : MonoBehaviour
     float      _trendingTimer;
     Vector3    _originalScale;
     int        _forceHeartFrames; // force sprite cœur N frames après fin du clone
+
+    // Scatter is a genuine roam, not a beeline to a fixed corner: the enemy
+    // heads to a random walkable cell, then picks a new one on arrival —
+    // this is what gives the player breathing room to move fast without
+    // being relentlessly chased.
+    Vector2Int _wanderTarget;
+    const float CHASE_DURATION = 8f; // how long a Chase bout lasts before wandering again
 
     // Référence au SpriteRenderer du joueur — utilisée pendant la clone phase
     SpriteRenderer _playerSpriteRef;
@@ -95,6 +124,8 @@ public class LikeEnemy : MonoBehaviour
         _sr            = GetComponent<SpriteRenderer>();
         _anim          = GetComponent<Animator>();
         _originalScale = transform.localScale;
+
+        SetupPersonalityIcon();
 
         if (SpeedSystem.Instance != null)
             SpeedSystem.Instance.OnSpeedChanged += OnSpeedChanged;
@@ -166,14 +197,25 @@ public class LikeEnemy : MonoBehaviour
         float dur   = 1f / speed;
         float t     = 0f;
 
+        // Squash & stretch relative to whatever scale is currently active
+        // (normal / Clone-giant / etc.) — not always _originalScale.
+        Vector3 stepBaseScale = transform.localScale;
+
         while (t < dur)
         {
             t += Time.deltaTime;
-            transform.position = Vector3.Lerp(startPos, endPos, t / dur);
+            float nt = Mathf.Clamp01(t / dur);
+            transform.position = Vector3.Lerp(startPos, endPos, nt);
+
+            float stretch = Mathf.Sin(nt * Mathf.PI) * 0.12f;
+            transform.localScale = new Vector3(
+                stepBaseScale.x * (1f - stretch), stepBaseScale.y * (1f + stretch), stepBaseScale.z);
+
             yield return null;
         }
 
-        transform.position = endPos;
+        transform.position   = endPos;
+        transform.localScale = stepBaseScale;
         _gridPos  = next;
         _isMoving = false;
     }
@@ -189,17 +231,40 @@ public class LikeEnemy : MonoBehaviour
                 return scatterTarget;
             case EnemyState.Chase:
                 if (player == null) return scatterTarget;
-                if (IsPlayerHidden(player)) return scatterTarget; // lost track — player ducked into a niche
+                if (IsPlayerHidden(player)) return _spawnCell; // lost track — turn back toward spawn
                 return GetPersonalityTarget(player);
             case EnemyState.Clone:
                 return player != null ? GetPersonalityTarget(player) : scatterTarget;
             case EnemyState.Scatter:
-                return scatterTarget;
+                if (_gridPos == _wanderTarget || !IsWalkable(_wanderTarget))
+                    _wanderTarget = PickRandomWalkableCell();
+                return _wanderTarget;
             case EnemyState.Respawning:
                 return _spawnCell;
             default:
                 return scatterTarget;
         }
+    }
+
+    bool IsWalkable(Vector2Int cell)
+    {
+        if (_walkable == null) return false;
+        if (cell.x < 0 || cell.x >= MazeData.Width || cell.y < 0 || cell.y >= MazeData.Height) return false;
+        return _walkable[cell.x, cell.y];
+    }
+
+    // Rejection-sample a random walkable cell anywhere in the maze — this is
+    // what makes Scatter a real roam across the whole level instead of a
+    // beeline to one fixed corner.
+    Vector2Int PickRandomWalkableCell()
+    {
+        if (_walkable == null) return _gridPos;
+        for (int attempt = 0; attempt < 30; attempt++)
+        {
+            var cell = new Vector2Int(Random.Range(0, MazeData.Width), Random.Range(0, MazeData.Height));
+            if (_walkable[cell.x, cell.y]) return cell;
+        }
+        return _gridPos;
     }
 
     // True while the player stands in a dead-end niche (MazeLoader.HideCells) and this
@@ -254,11 +319,18 @@ public class LikeEnemy : MonoBehaviour
 
     // ── State transitions ──────────────────────────────────────────
 
+    // Alternates Scatter (roam) <-> Chase for the whole level, Pac-Man-style,
+    // instead of a one-shot scatter that then chases forever — this is what
+    // gives the player recurring windows to move fast without being chased.
     IEnumerator ScatterThenChase()
     {
-        SetState(EnemyState.Scatter);
-        yield return new WaitForSeconds(_scatterSeconds);
-        SetState(EnemyState.Chase);
+        while (true)
+        {
+            SetState(EnemyState.Scatter);
+            yield return new WaitForSeconds(_scatterSeconds);
+            SetState(EnemyState.Chase);
+            yield return new WaitForSeconds(CHASE_DURATION);
+        }
     }
 
     public void EnterFrightened()
@@ -281,7 +353,7 @@ public class LikeEnemy : MonoBehaviour
         }
         _sr.enabled = true;
         if (_state == EnemyState.Frightened)
-            SetState(EnemyState.Chase);
+            StartCoroutine(ScatterThenChase()); // resume the roam/chase cycle, not permanent chase
     }
 
     public void EnterClone()
@@ -301,7 +373,7 @@ public class LikeEnemy : MonoBehaviour
     {
         SetState(EnemyState.Clone);
         yield return new WaitForSeconds(8f);
-        SetState(EnemyState.Chase);
+        StartCoroutine(ScatterThenChase()); // resume the roam/chase cycle, not permanent chase
     }
 
     public void GetEaten()
@@ -327,6 +399,7 @@ public class LikeEnemy : MonoBehaviour
         _isMoving = true;
         _gridPos  = _spawnCell;
         transform.position = GridToWorld(_spawnCell);
+        transform.localScale = _originalScale; // reappear at normal (alive) size, even if eaten mid-Clone
         dissolve.ResetVisual();
 
         // Clignotement d'apparition (4 flashs)
@@ -344,7 +417,7 @@ public class LikeEnemy : MonoBehaviour
 
         // Libérer le verrou AVANT SetState pour que l'Update redémarre immédiatement
         _isMoving = false;
-        SetState(EnemyState.Chase);
+        StartCoroutine(ScatterThenChase()); // resume the roam/chase cycle, not permanent chase
     }
 
     // Appelé par GameManager après respawn du joueur
@@ -361,7 +434,7 @@ public class LikeEnemy : MonoBehaviour
         SetState(EnemyState.Scatter);
         yield return new WaitForSeconds(duration);
         if (_state == EnemyState.Scatter)
-            SetState(EnemyState.Chase);
+            StartCoroutine(ScatterThenChase()); // resume the roam/chase cycle, not permanent chase
     }
 
     public void ApplyMalus()
@@ -442,6 +515,17 @@ public class LikeEnemy : MonoBehaviour
                         transform.localScale = _playerSpriteRef.transform.localScale;
                     else
                         transform.localScale = _originalScale * 3f;
+                    break;
+
+                case EnemyState.Respawning:
+                    // Snap back to normal size/sprite immediately — even if eaten mid-Clone
+                    // (giant, mimicking the player), it should dissolve and come back as its
+                    // regular heart-tier self, not stay stuck at the wrong size or appearance.
+                    _sr.color = _baseColor;
+                    transform.localScale = _originalScale;
+                    if (spriteTier3 && (SpeedSystem.Instance?.CurrentMultiplier ?? 1f) >= 2.2f) _sr.sprite = spriteTier3;
+                    else if (spriteTier2 && (SpeedSystem.Instance?.CurrentMultiplier ?? 1f) >= 1.5f) _sr.sprite = spriteTier2;
+                    else if (spriteTier1) _sr.sprite = spriteTier1;
                     break;
 
                 default:

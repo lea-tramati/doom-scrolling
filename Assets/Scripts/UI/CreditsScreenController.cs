@@ -21,7 +21,13 @@ public class CreditsScreenController : MonoBehaviour
     void Start()
     {
         if (backButton) backButton.onClick.AddListener(OnBack);
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // Application.Quit() is a no-op in browsers; there's nothing useful for this button to do.
+        if (quitButton) quitButton.gameObject.SetActive(false);
+#else
         if (quitButton) quitButton.onClick.AddListener(OnQuit);
+#endif
 
         if (scrollingText != null)
         {

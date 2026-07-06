@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections;
+using System.Collections.Generic;
 
 // Attach to: persistent GameObject "GameManager"
 // Level progression: score-based, thresholds double each level
@@ -36,6 +37,23 @@ public class GameManager : MonoBehaviour
     int  _appIconsThisLevel;
     bool _levelingUp;        // guard against double-trigger
 
+    // Which of the 4 app-icon types have been collected this level, for the
+    // bottom HUD dock bar (index via AppTypeIndex — Snapchat/Instagram/TikTok/Twitter).
+    readonly bool[] _appTypesCollected = new bool[4];
+    public bool[] AppTypesCollected => _appTypesCollected;
+
+    // ── Level 1 contextual tutorial hints (replaces the old title-screen
+    // "How To Play" panel) — each key fires its notification once per game,
+    // the first time that mechanic comes up during the first level.
+    readonly HashSet<string> _hintsShown = new HashSet<string>();
+
+    public void ShowHintOnce(string key, string message)
+    {
+        if (Level != 1) return;
+        if (!_hintsShown.Add(key)) return;
+        NotificationManager.Instance?.TriggerNotification(message, "notif");
+    }
+
     // ── Events ────────────────────────────────────────────────────
     public System.Action<int>   OnScoreChanged;
     public System.Action<int>   OnLivesChanged;
@@ -44,6 +62,7 @@ public class GameManager : MonoBehaviour
     public System.Action<bool>  OnGameOver;
     public System.Action        OnLevelComplete;
     public System.Action        OnClonePhaseEnd;
+    public System.Action<bool[]> OnAppTypesChanged; // full 4-slot collected status
 
     void Awake()
     {
@@ -76,6 +95,8 @@ public class GameManager : MonoBehaviour
         Level             = 1;
         _dotsCollected    = 0;
         _appIconsThisLevel = 0;
+        ResetAppTypesCollected();
+        _hintsShown.Clear();
         _levelingUp       = false;
         ApparentWin       = false;
         IsPlaying         = true;
@@ -93,8 +114,33 @@ public class GameManager : MonoBehaviour
 
     // Dot collected — stat tracking only, no level trigger
     public void OnDotCollected()   => _dotsCollected++;
-    public void OnAppIconCollected() => _appIconsThisLevel++;
+
+    public void OnAppIconCollected(CollectibleType type)
+    {
+        _appIconsThisLevel++;
+        int idx = AppTypeIndex(type);
+        if (idx >= 0) _appTypesCollected[idx] = true;
+        OnAppTypesChanged?.Invoke(_appTypesCollected);
+    }
     public int  AppIconsThisLevel  => _appIconsThisLevel;
+
+    static int AppTypeIndex(CollectibleType t)
+    {
+        switch (t)
+        {
+            case CollectibleType.AppIcon_Snapchat:  return 0;
+            case CollectibleType.AppIcon_Instagram: return 1;
+            case CollectibleType.AppIcon_TikTok:    return 2;
+            case CollectibleType.AppIcon_Twitter:   return 3;
+            default: return -1;
+        }
+    }
+
+    void ResetAppTypesCollected()
+    {
+        for (int i = 0; i < _appTypesCollected.Length; i++) _appTypesCollected[i] = false;
+        OnAppTypesChanged?.Invoke(_appTypesCollected);
+    }
 
     public void PlayerDied()
     {
@@ -157,6 +203,7 @@ public class GameManager : MonoBehaviour
 
         Level++;
         _appIconsThisLevel = 0;
+        ResetAppTypesCollected();
 
         if (Level > MaxLevel)
         {

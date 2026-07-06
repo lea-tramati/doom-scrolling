@@ -9,6 +9,7 @@ public class CyberpunkBackground : MonoBehaviour
     [SerializeField] float brightnessMin  = 0.92f;
     [SerializeField] float brightnessMax  = 1.00f;
     [SerializeField] float flickerSpeed   = 0.8f;
+    [SerializeField] float stepsPerSecond = 8f; // quantizes the flicker into visible digital steps
 
     SpriteRenderer _sr;
     float          _t;
@@ -23,13 +24,17 @@ public class CyberpunkBackground : MonoBehaviour
     {
         _t += Time.deltaTime;
 
-        // Gentle pulsing brightness (simulates neon sign flicker ambience)
-        float bright = Mathf.Lerp(brightnessMin, brightnessMax,
-            (Mathf.Sin(_t * flickerSpeed) + 1f) * 0.5f);
+        // Quantize time into discrete ticks so the flicker jumps in visible steps
+        // instead of gliding smoothly — reads as a digital signal, not an analog fade.
+        float steppedT = Mathf.Floor(_t * stepsPerSecond) / stepsPerSecond;
 
-        // Slow color temperature cycle
+        // Stepped pulsing brightness (simulates a glitchy digital flicker)
+        float bright = Mathf.Lerp(brightnessMin, brightnessMax,
+            (Mathf.Sin(steppedT * flickerSpeed) + 1f) * 0.5f);
+
+        // Slow color temperature cycle, same stepped cadence
         Color tint = Color.Lerp(TintA, TintB,
-            (Mathf.Sin(_t * tintCycleSpeed) + 1f) * 0.5f);
+            (Mathf.Sin(steppedT * tintCycleSpeed) + 1f) * 0.5f);
 
         _sr.color = tint * bright;
     }

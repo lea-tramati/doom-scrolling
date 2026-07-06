@@ -25,6 +25,12 @@ public class PlayerController : MonoBehaviour
     bool _autoPlayActive;
     bool _isDead;
 
+    // True for the whole Clone-phase window (Smartphone pickup) — lets the
+    // player eat any enemy on contact even if that specific enemy already
+    // reverted to Chase on its own (e.g. it was eaten-and-respawned earlier
+    // in the same window), instead of relying on each enemy's own state.
+    public bool PowerModeActive { get; private set; }
+
     float _currentSpeed;
 
     // ── References ────────────────────────────────────────────────
@@ -32,18 +38,22 @@ public class PlayerController : MonoBehaviour
     Animator           _anim;
     bool               _hasAnimController;
 
-    static readonly int AnimDirX  = Animator.StringToHash("DirX");
-    static readonly int AnimDirY  = Animator.StringToHash("DirY");
-    static readonly int AnimDeath = Animator.StringToHash("Death");
-    static readonly int AnimMalus = Animator.StringToHash("Malus");
+    static readonly int AnimDirX   = Animator.StringToHash("DirX");
+    static readonly int AnimDirY   = Animator.StringToHash("DirY");
+    static readonly int AnimMoving = Animator.StringToHash("Moving");
+    static readonly int AnimDeath  = Animator.StringToHash("Death");
+    static readonly int AnimMalus  = Animator.StringToHash("Malus");
 
     // ── Lifecycle ─────────────────────────────────────────────────
+
+    Vector3 _baseScale;
 
     void Awake()
     {
         _anim              = GetComponent<Animator>();
         _hasAnimController = _anim != null && _anim.runtimeAnimatorController != null;
         _stateManager      = GetComponent<PlayerStateManager>();
+        _baseScale         = transform.localScale;
     }
 
     public void Init(bool[,] walkabilityGrid)
@@ -62,6 +72,11 @@ public class PlayerController : MonoBehaviour
         _currentSpeed = baseSpeed;
 
         GetComponent<DissolveEffect>()?.ResetVisual();
+
+        // The Death state has no exit transition of its own (it's meant to freeze
+        // on the last dissolve frame) — force the Animator back to Idle directly,
+        // otherwise the sprite stays stuck on the death pose forever.
+        if (_hasAnimController) { _anim.SetBool(AnimMoving, false); _anim.Play("Idle", 0, 0f); }
 
         SnapToGrid();
         _stateManager?.SetState(PlayerState.Normal);
@@ -109,7 +124,10 @@ public class PlayerController : MonoBehaviour
         if (_moveDir != Vector2.zero && CanMoveTo(_moveDir))
             StartCoroutine(MoveStep(_moveDir));
         else if (_moveDir != Vector2.zero && !CanMoveTo(_moveDir))
+        {
             _moveDir = Vector2.zero; // hit wall, stop
+            if (_hasAnimController) _anim.SetBool(AnimMoving, false);
+        }
     }
 
     bool CanMoveTo(Vector2 dir)
@@ -128,6 +146,7 @@ public class PlayerController : MonoBehaviour
     IEnumerator MoveStep(Vector2 dir)
     {
         _isMoving = true;
+        if (_hasAnimController) _anim.SetBool(AnimMoving, true);
 
         int nx = _gridPos.x + (int)dir.x;
         int ny = _gridPos.y - (int)dir.y;
@@ -158,6 +177,7 @@ public class PlayerController : MonoBehaviour
 
                 _gridPos  = new Vector2Int(nx, ny);
                 _isMoving = false;
+                CheckHideHint();
                 yield break;
             }
         }
@@ -182,13 +202,29 @@ public class PlayerController : MonoBehaviour
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            transform.position = Vector3.Lerp(start, end, elapsed / duration);
+            float t = Mathf.Clamp01(elapsed / duration);
+            transform.position = Vector3.Lerp(start, end, t);
+
+            // Squash & stretch: stretch tall mid-step, squash back down on arrival.
+            float stretch = Mathf.Sin(t * Mathf.PI) * 0.12f;
+            transform.localScale = new Vector3(
+                _baseScale.x * (1f - stretch), _baseScale.y * (1f + stretch), _baseScale.z);
+
             yield return null;
         }
 
-        transform.position = end;
+        transform.position   = end;
+        transform.localScale = _baseScale;
         _gridPos  = new Vector2Int(nx, ny);
         _isMoving = false;
+        CheckHideHint();
+    }
+
+    // First time the player ducks into a dead-end niche, explain the mechanic.
+    void CheckHideHint()
+    {
+        if (MazeLoader.HideCells != null && MazeLoader.HideCells.Contains(_gridPos))
+            GameManager.Instance?.ShowHintOnce("hide", "DUCK INTO ALCOVES TO LOSE ENEMIES");
     }
 
     // ── Hazard effects ────────────────────────────────────────────
@@ -265,7 +301,10 @@ public class PlayerController : MonoBehaviour
             var enemy = other.GetComponent<LikeEnemy>();
             if (enemy == null) return;
 
-            if (enemy.IsFrightened)
+            // Les ennemis en cours de respawn (invisibles) ne tuent pas et ne se mangent pas
+            if (enemy.IsRespawning) return;
+
+            if (enemy.IsFrightened || PowerModeActive)
             {
                 enemy.GetEaten();
                 GameManager.Instance?.AddScore(200);
@@ -275,14 +314,28 @@ public class PlayerController : MonoBehaviour
                 NotificationManager.Instance?.TriggerNotification("CONTENT SHARED", "clone");
                 CameraFollow.Instance?.Shake(0.15f, 0.06f);
             }
-            else if (!enemy.IsFrightened && !enemy.IsRespawning)
+            else
             {
-                // Les ennemis en cours de respawn (invisibles) ne tuent pas
                 if (flash != null && flash.IsInvincible) return;
                 flash?.PlayHitFlash();
                 Die();
             }
         }
+    }
+
+    // Called by CollectibleItem when the Smartphone pickup starts the Clone
+    // phase — keeps the player safe to eat any enemy for the whole window.
+    public void ActivatePowerMode(float duration)
+    {
+        StopCoroutine(nameof(PowerModeTimer));
+        StartCoroutine(PowerModeTimer(duration));
+    }
+
+    IEnumerator PowerModeTimer(float duration)
+    {
+        PowerModeActive = true;
+        yield return new WaitForSeconds(duration);
+        PowerModeActive = false;
     }
 
     public Vector2Int GridPos   => _gridPos;

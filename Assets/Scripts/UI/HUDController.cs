@@ -18,6 +18,11 @@ public class HUDController : MonoBehaviour
     [SerializeField] Image engagementFill;
     [SerializeField] TextMeshProUGUI engagementLabel;
 
+    [Header("Bottom app dock")]
+    [SerializeField] Image[] appIconFrames; // 4 slots: Snapchat, Instagram, TikTok, Twitter
+    [SerializeField] Color   appIconCollectedColor = Color.white;
+    [SerializeField] Color   appIconPendingColor   = new Color(1f, 1f, 1f, 0.3f);
+
     [Header("Overlay messages")]
     [SerializeField] GameObject      overlayPanel;
     [SerializeField] TextMeshProUGUI overlayText;
@@ -29,7 +34,6 @@ public class HUDController : MonoBehaviour
     [Header("Colors")]
     [SerializeField] Color colorNormal   = new Color(1f,   0.30f, 0.56f); // #FF4D90
     [SerializeField] Color colorDanger   = new Color(1f,   0.23f, 0.37f); // #FF3A5E
-    [SerializeField] Color colorProgress = new Color(0.51f, 0.37f, 1f);   // #815FFF
     [SerializeField] Color colorOverlay  = new Color(1f,   0.30f, 0.56f); // #FF4D90
 
     Coroutine _overlayCoroutine;
@@ -51,6 +55,7 @@ public class HUDController : MonoBehaviour
             GameManager.Instance.OnLivesChanged         += RefreshLives;
             GameManager.Instance.OnLevelChanged         += RefreshLevel;
             GameManager.Instance.OnLevelProgressChanged += RefreshLevelProgress;
+            GameManager.Instance.OnAppTypesChanged      += RefreshAppIcons;
         }
         if (SpeedSystem.Instance != null)
             SpeedSystem.Instance.OnSpeedChanged += RefreshEngagement;
@@ -64,6 +69,7 @@ public class HUDController : MonoBehaviour
             GameManager.Instance.OnLivesChanged         -= RefreshLives;
             GameManager.Instance.OnLevelChanged         -= RefreshLevel;
             GameManager.Instance.OnLevelProgressChanged -= RefreshLevelProgress;
+            GameManager.Instance.OnAppTypesChanged      -= RefreshAppIcons;
         }
         if (SpeedSystem.Instance != null)
             SpeedSystem.Instance.OnSpeedChanged -= RefreshEngagement;
@@ -106,6 +112,7 @@ public class HUDController : MonoBehaviour
         RefreshLives(GameManager.Instance.Lives);
         RefreshLevel(GameManager.Instance.Level);
         RefreshLevelProgress(GameManager.Instance.LevelProgress());
+        RefreshAppIcons(GameManager.Instance.AppTypesCollected);
         if (SpeedSystem.Instance != null)
             RefreshEngagement(SpeedSystem.Instance.CurrentMultiplier);
     }
@@ -148,7 +155,18 @@ public class HUDController : MonoBehaviour
     {
         if (!levelProgressFill) return;
         levelProgressFill.fillAmount = t;
-        levelProgressFill.color = Color.Lerp(colorProgress, Color.white, t * t);
+        levelProgressFill.color = Color.white; // plain white — easy to read at a glance
+    }
+
+    void RefreshAppIcons(bool[] collected)
+    {
+        if (appIconFrames == null || collected == null) return;
+        for (int i = 0; i < appIconFrames.Length; i++)
+        {
+            if (!appIconFrames[i]) continue;
+            bool got = i < collected.Length && collected[i];
+            appIconFrames[i].color = got ? appIconCollectedColor : appIconPendingColor;
+        }
     }
 
     void RefreshEngagement(float m)

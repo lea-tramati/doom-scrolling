@@ -10,9 +10,7 @@ public class TitleScreenController : MonoBehaviour
     [SerializeField] TextMeshProUGUI titleLabel;
     [SerializeField] TextMeshProUGUI subtitleLabel;
     [SerializeField] Button          openAppButton;
-    [SerializeField] RectTransform   notifBadge;   // bouncing "99+"
     [SerializeField] GameObject      howToPlayPanel;
-    [SerializeField] Button          gotItButton;
     [SerializeField] Button          creditsButton;
 
     float _glitchTimer;
@@ -26,17 +24,12 @@ public class TitleScreenController : MonoBehaviour
         if (openAppButton)
             openAppButton.onClick.AddListener(OnOpenApp);
 
-        if (howToPlayPanel) howToPlayPanel.SetActive(true);
-        if (gotItButton)    gotItButton.onClick.AddListener(OnGotIt);
+        // How-to-play is now taught in-level (Level 1 contextual hints via
+        // GameManager.ShowHintOnce) instead of a title-screen panel.
+        if (howToPlayPanel) howToPlayPanel.SetActive(false);
         if (creditsButton)  creditsButton.onClick.AddListener(OnCredits);
 
         AudioManager.Instance?.PlayAmbientMusic();
-        StartCoroutine(BadgeBounce());
-    }
-
-    void OnGotIt()
-    {
-        if (howToPlayPanel) howToPlayPanel.SetActive(false);
     }
 
     void OnCredits()
@@ -67,23 +60,6 @@ public class TitleScreenController : MonoBehaviour
         }
         titleLabel.rectTransform.anchoredPosition = Vector2.zero;
         _glitchOn = false;
-    }
-
-    IEnumerator BadgeBounce()
-    {
-        if (notifBadge == null) yield break;
-        while (true)
-        {
-            float t = 0f;
-            while (t < 1f)
-            {
-                t += Time.deltaTime * 2f;
-                float y = Mathf.Sin(t * Mathf.PI) * 12f;
-                notifBadge.anchoredPosition =
-                    new Vector2(notifBadge.anchoredPosition.x, y);
-                yield return null;
-            }
-        }
     }
 
     void OnOpenApp()
