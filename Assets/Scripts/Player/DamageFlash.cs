@@ -11,30 +11,36 @@ public class DamageFlash : MonoBehaviour
     [SerializeField] Color hitTint = new Color(1f, 0.3f, 0.3f, 1f);
 
     SpriteRenderer _sr;
-    bool           _isInvincible;
+    int            _invincibilityRequests; // counter, not a bool — overlapping windows (e.g.
+                                            // respawn grace + a hazard block) must not let one
+                                            // ending early cancel protection the other still owes
 
-    public bool IsInvincible => _isInvincible;
+    public bool IsInvincible => _invincibilityRequests > 0;
 
     void Awake() => _sr = GetComponent<SpriteRenderer>();
 
     // Called by PlayerController right after respawn (ResetState)
-    public void StartRespawnInvincibility() => StartCoroutine(InvincibilityRoutine());
+    public void StartRespawnInvincibility() => StartInvincibility(invincibleDuration);
+
+    // Called by anything that needs to guarantee the player can't be hit for a window —
+    // e.g. PopupAd, whose solid blocker leaves no way to dodge on its own.
+    public void StartInvincibility(float duration) => StartCoroutine(InvincibilityRoutine(duration));
 
     // Called by PlayerController on first hit (before death) — brief red flash
     public void PlayHitFlash() => StartCoroutine(HitFlashRoutine());
 
-    IEnumerator InvincibilityRoutine()
+    IEnumerator InvincibilityRoutine(float duration)
     {
-        _isInvincible = true;
+        _invincibilityRequests++;
         float timer = 0f;
-        while (timer < invincibleDuration)
+        while (timer < duration)
         {
             _sr.enabled = !_sr.enabled;
             yield return new WaitForSeconds(flashInterval);
             timer += flashInterval;
         }
-        _sr.enabled   = true;
-        _isInvincible = false;
+        _invincibilityRequests--;
+        if (_invincibilityRequests == 0) _sr.enabled = true;
     }
 
     IEnumerator HitFlashRoutine()

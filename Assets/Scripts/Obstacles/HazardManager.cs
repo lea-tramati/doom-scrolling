@@ -16,12 +16,19 @@ public class HazardManager : MonoBehaviour
     [SerializeField] float maxInterval    = 90f;
     [SerializeField] int   maxSimultaneous = 3;
 
+    // Keeps hazards from spawning on top of / right next to the player — PopupAd in
+    // particular has a solid blocker with no built-in escape, so an unlucky close spawn
+    // right as an enemy closes in was an unavoidable hit.
+    const int MIN_HAZARD_DISTANCE_FROM_PLAYER = 5;
+
     List<GameObject> _active = new();
     MazeLoader       _loader;
+    PlayerController _player;
 
     void Start()
     {
         _loader = FindObjectOfType<MazeLoader>();
+        _player = Object.FindAnyObjectByType<PlayerController>();
         StartCoroutine(SpawnLoop());
     }
 
@@ -83,8 +90,15 @@ public class HazardManager : MonoBehaviour
         {
             int x = Random.Range(1, MazeData.Width - 1);
             int y = Random.Range(1, MazeData.Height - 1);
-            if (grid[x, y])
-                return new Vector3(x + 0.5f, MazeData.Height - 1 - y + 0.5f, 0f);
+            if (!grid[x, y]) continue;
+
+            if (_player != null)
+            {
+                int dist = Mathf.Abs(x - _player.GridPos.x) + Mathf.Abs(y - _player.GridPos.y);
+                if (dist < MIN_HAZARD_DISTANCE_FROM_PLAYER) continue;
+            }
+
+            return new Vector3(x + 0.5f, MazeData.Height - 1 - y + 0.5f, 0f);
         }
         return Vector3.zero;
     }

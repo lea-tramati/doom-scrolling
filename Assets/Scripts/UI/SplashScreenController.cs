@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using System.Collections;
 
 // Attach to: root Canvas in SplashScreen scene
@@ -28,7 +27,7 @@ public class SplashScreenController : MonoBehaviour
         yield return new WaitForSeconds(HOLD);
 
         yield return Fade(fadeOverlay, 0f, 1f, FADE_OUT);
-        SceneManager.LoadScene("TitleScreen");
+        SceneTransitionManager.Load("TitleScreen");
     }
 
     IEnumerator Fade(CanvasGroup group, float from, float to, float duration)

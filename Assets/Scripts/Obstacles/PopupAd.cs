@@ -17,6 +17,11 @@ public class PopupAd : MonoBehaviour
     {
         AudioManager.Instance?.PlaySFX("popup_appear");
         HUDController.Instance?.ShowOverlay($"AD — SKIP IN 3", 3f);
+
+        // The solid blocker leaves the player no way to dodge — grant invincibility for
+        // the whole block so a badly-timed spawn near an enemy can't force an unavoidable hit.
+        Object.FindAnyObjectByType<PlayerController>()?.GetComponent<DamageFlash>()?.StartInvincibility(lifetime);
+
         StartCoroutine(Countdown());
     }
 

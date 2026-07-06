@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement;
 using TMPro;
 using System.Collections;
 
@@ -73,6 +72,12 @@ public class GameOverScreenController : MonoBehaviour
 
         if (totalScoreLabel) yield return CountUpScore();
 
+        if (totalScoreLabel && GameManager.Instance != null && GameManager.Instance.IsNewHighScore)
+        {
+            yield return new WaitForSeconds(0.2f);
+            totalScoreLabel.text += "\n\nNEW RECORD!";
+        }
+
         yield return new WaitForSeconds(0.3f);
 
         if (playAgainBtn) playAgainBtn.gameObject.SetActive(true);
@@ -138,12 +143,12 @@ public class GameOverScreenController : MonoBehaviour
         if (GameManager.Instance != null)
             GameManager.Instance.StartGame();
         else
-            SceneManager.LoadScene("TitleScreen");
+            SceneTransitionManager.Load("TitleScreen");
     }
 
     void OnBackToTitle()
     {
-        SceneManager.LoadScene("TitleScreen");
+        SceneTransitionManager.Load("TitleScreen");
     }
 
     void OnQuit()

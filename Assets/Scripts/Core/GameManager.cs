@@ -30,6 +30,10 @@ public class GameManager : MonoBehaviour
     public bool  ApparentWin   { get; private set; }
     public bool  IsPlaying     { get; private set; }
 
+    const string HIGH_SCORE_KEY = "HighScore";
+    public int  HighScore      { get; private set; }
+    public bool IsNewHighScore { get; private set; }
+
     [Header("Config")]
     [SerializeField] int startLives = 3;
 
@@ -101,7 +105,7 @@ public class GameManager : MonoBehaviour
         ApparentWin       = false;
         IsPlaying         = true;
         SpeedSystem.Instance?.ResetSpeed();
-        SceneManager.LoadScene(SCENE_GAME);
+        SceneTransitionManager.Load(SCENE_GAME);
     }
 
     public void AddScore(int pts)
@@ -221,7 +225,7 @@ public class GameManager : MonoBehaviour
         IsPlaying   = true;
 
         // Reload maze with new layout
-        SceneManager.LoadScene(SCENE_GAME);
+        SceneTransitionManager.Load(SCENE_GAME);
     }
 
     IEnumerator RespawnDelay()
@@ -241,8 +245,17 @@ public class GameManager : MonoBehaviour
         IsPlaying = false;
         yield return new WaitForSeconds(1.5f);
         ApparentWin = win;
+
+        HighScore = PlayerPrefs.GetInt(HIGH_SCORE_KEY, 0);
+        IsNewHighScore = Score > HighScore;
+        if (IsNewHighScore)
+        {
+            HighScore = Score;
+            PlayerPrefs.SetInt(HIGH_SCORE_KEY, HighScore);
+        }
+
         OnGameOver?.Invoke(win);
-        SceneManager.LoadScene(win ? SCENE_END : SCENE_GAMEOVER);
+        SceneTransitionManager.Load(win ? SCENE_END : SCENE_GAMEOVER);
     }
 
     public string FormattedTime()

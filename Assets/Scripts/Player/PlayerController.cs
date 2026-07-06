@@ -105,12 +105,60 @@ public class PlayerController : MonoBehaviour
         if (!_isMoving) TryMove();
     }
 
+    // Swipe state — touch on device, mouse-drag fallback so it's testable in-editor/desktop.
+    Vector2 _swipeStartPos;
+    bool    _swipeActive;
+    const float SWIPE_THRESHOLD = 40f; // pixels before a drag counts as a directional swipe
+
     void ReadInput()
     {
         if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D)) _queuedDir = Vector2.right;
         else if (Input.GetKey(KeyCode.LeftArrow)  || Input.GetKey(KeyCode.A)) _queuedDir = Vector2.left;
         else if (Input.GetKey(KeyCode.UpArrow)    || Input.GetKey(KeyCode.W)) _queuedDir = Vector2.up;
         else if (Input.GetKey(KeyCode.DownArrow)  || Input.GetKey(KeyCode.S)) _queuedDir = Vector2.down;
+
+        ReadSwipeInput();
+    }
+
+    void ReadSwipeInput()
+    {
+        bool down, held;
+        Vector2 pos;
+
+        if (Input.touchCount > 0)
+        {
+            var t = Input.GetTouch(0);
+            pos  = t.position;
+            down = t.phase == TouchPhase.Began;
+            held = t.phase == TouchPhase.Moved || t.phase == TouchPhase.Stationary;
+        }
+        else
+        {
+            pos  = Input.mousePosition;
+            down = Input.GetMouseButtonDown(0);
+            held = Input.GetMouseButton(0);
+        }
+
+        if (down)
+        {
+            _swipeStartPos = pos;
+            _swipeActive   = true;
+        }
+        else if (held && _swipeActive)
+        {
+            Vector2 delta = pos - _swipeStartPos;
+            if (delta.magnitude >= SWIPE_THRESHOLD)
+            {
+                _queuedDir = Mathf.Abs(delta.x) > Mathf.Abs(delta.y)
+                    ? (delta.x > 0f ? Vector2.right : Vector2.left)
+                    : (delta.y > 0f ? Vector2.up    : Vector2.down);
+                _swipeStartPos = pos; // reset so a continued drag can queue further turns
+            }
+        }
+        else if (!held)
+        {
+            _swipeActive = false;
+        }
     }
 
     void TryMove()

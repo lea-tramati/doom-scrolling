@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement;
 
 // Attach to: root Canvas in CreditsScreen scene
 // Reachable from TitleScreen (CREDITS button) and from EndScreen's "put down the phone" path.
@@ -66,7 +65,7 @@ public class CreditsScreenController : MonoBehaviour
 
     void OnBack()
     {
-        SceneManager.LoadScene("TitleScreen");
+        SceneTransitionManager.Load("TitleScreen");
     }
 
     void OnQuit()

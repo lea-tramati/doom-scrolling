@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement;
 
 // Attach to: root Canvas in GameScene (built by PauseMenuSetup)
 // Escape toggles pause. Uses Time.timeScale rather than GameManager.IsPlaying so it can't
@@ -17,8 +16,14 @@ public class PauseMenuController : MonoBehaviour
 
     bool _isPaused;
 
+    // CameraFollow's HitStop coroutine forces Time.timeScale back to 1 after a realtime
+    // delay — without this flag, pausing mid-hitstop would get silently un-paused when
+    // that coroutine finishes, since it has no idea the pause menu is up.
+    public static bool IsPaused { get; private set; }
+
     void Start()
     {
+        IsPaused = false;
         if (panel) panel.SetActive(false);
 
         if (resumeBtn)  resumeBtn.onClick.AddListener(Resume);
@@ -55,6 +60,7 @@ public class PauseMenuController : MonoBehaviour
     void Pause()
     {
         _isPaused = true;
+        IsPaused = true;
         Time.timeScale = 0f;
         if (panel) panel.SetActive(true);
     }
@@ -62,6 +68,7 @@ public class PauseMenuController : MonoBehaviour
     void Resume()
     {
         _isPaused = false;
+        IsPaused = false;
         Time.timeScale = 1f;
         if (panel) panel.SetActive(false);
     }
@@ -70,15 +77,17 @@ public class PauseMenuController : MonoBehaviour
     {
         Time.timeScale = 1f;
         _isPaused = false;
+        IsPaused = false;
         if (GameManager.Instance != null) GameManager.Instance.StartGame();
-        else SceneManager.LoadScene("GameScene");
+        else SceneTransitionManager.Load("GameScene");
     }
 
     void BackToTitle()
     {
         Time.timeScale = 1f;
         _isPaused = false;
-        SceneManager.LoadScene("TitleScreen");
+        IsPaused = false;
+        SceneTransitionManager.Load("TitleScreen");
     }
 
     void Quit()
@@ -94,5 +103,6 @@ public class PauseMenuController : MonoBehaviour
         // Time.timeScale is global and outlives this object across a scene unload —
         // never leave the next scene frozen because we quit while paused.
         if (_isPaused) Time.timeScale = 1f;
+        IsPaused = false;
     }
 }

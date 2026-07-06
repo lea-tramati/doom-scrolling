@@ -71,8 +71,11 @@ public class CameraFollow : MonoBehaviour
     public void SnapOnce() => _snapNextFrame = true;
 
     // ── Game-feel juice ──────────────────────────────────────────
+    const string REDUCE_SHAKE_KEY = "ReduceScreenShake"; // set from the title screen's settings panel
+
     public void Shake(float duration, float magnitude)
     {
+        if (PlayerPrefs.GetInt(REDUCE_SHAKE_KEY, 0) == 1) magnitude *= 0.25f;
         StopCoroutine(nameof(ShakeRoutine));
         StartCoroutine(ShakeRoutine(duration, magnitude));
     }
@@ -102,6 +105,8 @@ public class CameraFollow : MonoBehaviour
     {
         Time.timeScale = slowScale;
         yield return new WaitForSecondsRealtime(duration);
-        Time.timeScale = 1f;
+        // Don't stomp the pause menu's freeze if the player paused mid-hitstop —
+        // this realtime wait keeps ticking regardless of Time.timeScale.
+        if (!PauseMenuController.IsPaused) Time.timeScale = 1f;
     }
 }

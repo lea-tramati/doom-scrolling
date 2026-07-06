@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
@@ -174,6 +173,6 @@ public class EndScreenController : MonoBehaviour
         }
 
         yield return new WaitForSeconds(2f);
-        SceneManager.LoadScene("CreditsScreen");
+        SceneTransitionManager.Load("CreditsScreen");
     }
 }
