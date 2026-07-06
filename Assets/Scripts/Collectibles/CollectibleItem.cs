@@ -111,7 +111,7 @@ public class CollectibleItem : MonoBehaviour
         Object.FindAnyObjectByType<PlayerController>()?.ActivatePowerMode(cloneDuration);
 
         AudioManager.Instance?.PlayClonePhaseMusic();
-        HUDController.Instance?.ShowOverlay("YOU ARE THE CONTENT", 8f);
+        HUDController.Instance?.ShowOverlay("YOU ARE THE CONTENT", 8f, glitchStyle: true);
         NotificationManager.Instance?.TriggerNotification("CONTENT SHARED", "clone");
     }
 }

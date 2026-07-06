@@ -27,6 +27,12 @@ public class AudioManager : MonoBehaviour
     AudioClip _currentTrack;
     bool _clonePlaying;
 
+    const string MUSIC_VOLUME_KEY = "MusicVolume";
+    const string SFX_VOLUME_KEY   = "SFXVolume";
+
+    public float MusicVolume => musicSource != null ? musicSource.volume : 1f;
+    public float SFXVolume   => sfxSource   != null ? sfxSource.volume   : 1f;
+
     [System.Serializable]
     public struct SFXEntry
     {
@@ -43,6 +49,21 @@ public class AudioManager : MonoBehaviour
         foreach (var e in sfxEntries)
             if (!string.IsNullOrEmpty(e.key) && e.clip != null)
                 _sfxMap[e.key] = e.clip;
+
+        if (musicSource != null) musicSource.volume = PlayerPrefs.GetFloat(MUSIC_VOLUME_KEY, 1f);
+        if (sfxSource   != null) sfxSource.volume   = PlayerPrefs.GetFloat(SFX_VOLUME_KEY, 1f);
+    }
+
+    public void SetMusicVolume(float v)
+    {
+        if (musicSource != null) musicSource.volume = v;
+        PlayerPrefs.SetFloat(MUSIC_VOLUME_KEY, v);
+    }
+
+    public void SetSFXVolume(float v)
+    {
+        if (sfxSource != null) sfxSource.volume = v;
+        PlayerPrefs.SetFloat(SFX_VOLUME_KEY, v);
     }
 
     void OnEnable()

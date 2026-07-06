@@ -15,6 +15,8 @@ public class TitleScreenController : MonoBehaviour
 
     float _glitchTimer;
     bool  _glitchOn;
+    int   _glitchCount;
+    const int MAX_GLITCHES = 3; // stop after a few reps — a screenshot or an idle player shouldn't see it loop forever
 
     void Start()
     {
@@ -22,7 +24,12 @@ public class TitleScreenController : MonoBehaviour
         if (subtitleLabel) subtitleLabel.text = "YOU ARE ALREADY INSIDE.";
 
         if (openAppButton)
+        {
             openAppButton.onClick.AddListener(OnOpenApp);
+            // Gentle breathing pulse so the primary CTA visually outranks the
+            // static credits button instead of both competing at equal weight.
+            StartCoroutine(BreatheCTA(openAppButton.transform));
+        }
 
         // How-to-play is now taught in-level (Level 1 contextual hints via
         // GameManager.ShowHintOnce) instead of a title-screen panel.
@@ -32,6 +39,18 @@ public class TitleScreenController : MonoBehaviour
         AudioManager.Instance?.PlayAmbientMusic();
     }
 
+    IEnumerator BreatheCTA(Transform t)
+    {
+        const float period = 1.6f;
+        const float amount  = 0.06f;
+        while (true)
+        {
+            float phase = (Mathf.Sin(Time.time * (Mathf.PI * 2f / period)) + 1f) * 0.5f;
+            t.localScale = Vector3.one * (1f + phase * amount);
+            yield return null;
+        }
+    }
+
     void OnCredits()
     {
         SceneManager.LoadScene("CreditsScreen");
@@ -39,12 +58,14 @@ public class TitleScreenController : MonoBehaviour
 
     void Update()
     {
-        // Title glitch every 3s
+        // Title glitch every 3s, capped so it doesn't loop forever on an idle title screen
+        if (_glitchCount >= MAX_GLITCHES) return;
         _glitchTimer += Time.deltaTime;
         if (!_glitchOn && _glitchTimer >= 3f)
         {
             _glitchOn    = true;
             _glitchTimer = 0f;
+            _glitchCount++;
             StartCoroutine(GlitchFlash());
         }
     }

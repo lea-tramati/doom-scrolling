@@ -32,8 +32,10 @@ public class HUDController : MonoBehaviour
     [SerializeField] TextMeshProUGUI levelTransitionText;
 
     [Header("Colors")]
-    [SerializeField] Color colorNormal   = new Color(1f,   0.30f, 0.56f); // #FF4D90
-    [SerializeField] Color colorDanger   = new Color(1f,   0.23f, 0.37f); // #FF3A5E
+    [SerializeField] Color colorNormal   = new Color(1f,   0.30f, 0.56f); // #FF4D90 (brand pink)
+    // Amber, not a darker pink — needs a hue jump from colorNormal so danger reads as
+    // an unmistakably different signal at a glance, not just "a bit more saturated".
+    [SerializeField] Color colorDanger   = new Color(1f,   0.65f, 0.15f); // #FFA626
     [SerializeField] Color colorOverlay  = new Color(1f,   0.30f, 0.56f); // #FF4D90
 
     Coroutine _overlayCoroutine;
@@ -90,7 +92,34 @@ public class HUDController : MonoBehaviour
             }
             overlayPanel.SetActive(false);
         }
+        ApplyVisualHierarchy();
         RefreshAll();
+    }
+
+    // Lives + engagement are what you must track continuously while dodging enemies;
+    // score/level are only worth a glance between dangers. Without some visual weight
+    // difference all 7 HUD zones compete equally, so nudge that hierarchy at a glance.
+    void ApplyVisualHierarchy()
+    {
+        const float primaryScale   = 1.12f;
+        const float secondaryAlpha = 0.82f;
+
+        if (engagementFill)  engagementFill.transform.localScale  = Vector3.one * primaryScale;
+        if (engagementLabel) engagementLabel.transform.localScale = Vector3.one * primaryScale;
+        if (lifeIcons != null)
+            foreach (var icon in lifeIcons)
+                if (icon) icon.transform.localScale = Vector3.one * primaryScale;
+
+        DimLabel(scoreLabel, secondaryAlpha);
+        DimLabel(levelLabel, secondaryAlpha);
+        DimLabel(nextThresholdLabel, secondaryAlpha);
+    }
+
+    static void DimLabel(TextMeshProUGUI label, float alpha)
+    {
+        if (!label) return;
+        var c = label.color;
+        label.color = new Color(c.r, c.g, c.b, alpha);
     }
 
     void Update()
@@ -185,24 +214,23 @@ public class HUDController : MonoBehaviour
 
     // ── Overlay messages ──────────────────────────────────────────
 
-    public void ShowOverlay(string message, float duration)
+    public void ShowOverlay(string message, float duration, bool glitchStyle = false)
     {
         if (_overlayCoroutine != null) StopCoroutine(_overlayCoroutine);
-        _overlayCoroutine = StartCoroutine(OverlaySequence(message, duration));
+        _overlayCoroutine = StartCoroutine(OverlaySequence(message, duration, glitchStyle));
     }
 
-    IEnumerator OverlaySequence(string message, float duration)
+    IEnumerator OverlaySequence(string message, float duration, bool glitchStyle)
     {
         if (overlayPanel == null) yield break;
         overlayPanel.SetActive(true);
         if (overlayText) overlayText.text = message;
 
-        bool isClone = message.Contains("CONTENT");
         const float fadeDur = 0.15f;
 
         yield return StartCoroutine(FadeOverlay(0f, 1f, fadeDur));
 
-        if (isClone)
+        if (glitchStyle)
         {
             float elapsed = 0f;
             float glitchDur = Mathf.Max(0f, duration - fadeDur);

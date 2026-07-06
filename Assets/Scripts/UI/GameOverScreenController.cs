@@ -15,6 +15,17 @@ public class GameOverScreenController : MonoBehaviour
     [SerializeField] CanvasGroup     fadeGroup;
 
     const float TYPE_SPEED = 0.03f;
+    const string PLAY_COUNT_KEY = "GameOverCount";
+
+    // Rotates so the guilt-trip line doesn't read as a canned reprimand on every replay —
+    // by the 4th+ visit it drops the lecture and just gives you the number back.
+    static readonly string[] GuiltLines =
+    {
+        "\n\nYou played for {0:0.0} hours. Maybe it's time to unplug",
+        "\n\n{0:0.0} hours, gone. The feed doesn't miss you back",
+        "\n\nThat's {0:0.0} hours you're not getting back",
+        "\n\nSession length: {0:0.0}h. No judgment. (Some judgment.)",
+    };
 
     int _finalScore;
 
@@ -51,8 +62,10 @@ public class GameOverScreenController : MonoBehaviour
         yield return new WaitForSeconds(0.5f);
 
         float hours = (GameManager.Instance?.SessionTimer ?? 0f) / 3600f;
+        int visitCount = PlayerPrefs.GetInt(PLAY_COUNT_KEY, 0);
+        PlayerPrefs.SetInt(PLAY_COUNT_KEY, visitCount + 1);
         if (sessionEndedLabel)
-            sessionEndedLabel.text += $"\n\nYou played for {hours:0.0} hours. Maybe it's time to unplug";
+            sessionEndedLabel.text += string.Format(GuiltLines[visitCount % GuiltLines.Length], hours);
 
         yield return new WaitForSeconds(0.3f);
 
