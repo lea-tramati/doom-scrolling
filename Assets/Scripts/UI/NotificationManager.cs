@@ -72,6 +72,23 @@ public class NotificationManager : MonoBehaviour
     readonly Queue<(string text, string app)> _ambientQueue  = new();
     bool _showing;
 
+    // "follow"/"like" fire on every single app-icon/bonus pickup — in level 1, where
+    // those items are close together, that queued up a wall of back-to-back banners
+    // that read as constant rather than punctuated. The pickup's score popup already
+    // gives per-item feedback, so these are throttled: a burst of pickups shows one
+    // banner, not one per item.
+    static readonly HashSet<string> ThrottledKeys = new() { "follow", "like" };
+    const float ThrottleCooldown = 6f;
+    readonly Dictionary<string, float> _lastShownAt = new();
+
+    // A dot sitting right next to the spawn point (or the very first "COLLECT DOTS
+    // FOR POINTS" hint) could otherwise trigger a banner within the first second of
+    // a level — before the player has even gotten their bearings. Hold every
+    // notification back until this much time has passed since the scene loaded.
+    const float InitialGracePeriod = 3f;
+    float _sceneStartTime;
+    bool  _firstNotificationShown;
+
     Image           _iconBg;
     TextMeshProUGUI _iconLetter;
 
@@ -83,6 +100,7 @@ public class NotificationManager : MonoBehaviour
 
     void Start()
     {
+        _sceneStartTime = Time.time;
         BuildPanelLayout();
         StartCoroutine(AutoTriggerLoop());
     }
@@ -91,6 +109,13 @@ public class NotificationManager : MonoBehaviour
 
     public void TriggerNotification(string text, string iconKey)
     {
+        if (ThrottledKeys.Contains(iconKey))
+        {
+            if (_lastShownAt.TryGetValue(iconKey, out float last) && Time.time - last < ThrottleCooldown)
+                return; // another pickup of this kind is already fresh on screen — skip, don't queue
+            _lastShownAt[iconKey] = Time.time;
+        }
+
         string app = IconKeyToApp.TryGetValue(iconKey, out var a) ? a : "ALERTS";
         _priorityQueue.Enqueue((text, app));
         if (!_showing) StartCoroutine(ProcessQueue());
@@ -100,6 +125,13 @@ public class NotificationManager : MonoBehaviour
 
     IEnumerator ProcessQueue()
     {
+        if (!_firstNotificationShown)
+        {
+            float remaining = InitialGracePeriod - (Time.time - _sceneStartTime);
+            if (remaining > 0f) yield return new WaitForSeconds(remaining);
+            _firstNotificationShown = true;
+        }
+
         while (_priorityQueue.Count > 0 || _ambientQueue.Count > 0)
         {
             _showing = true;
