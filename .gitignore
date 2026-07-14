@@ -7,6 +7,10 @@
 [Ll]ogs/
 [Uu]ser[Ss]ettings/
 
+# ...except the WebGL payload under docs/, which IS the deployed GitHub Pages
+# site (see WebGLBuildScript.cs) and must be committed for the HTML link to work.
+!docs/Build/
+
 # Visual Studio / Rider
 .vs/
 *.sln

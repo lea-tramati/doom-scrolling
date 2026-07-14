@@ -1,8 +1,15 @@
 // WebGLBuildScript.cs
 // Builds the game for the browser (WebGL) with settings tuned for this project:
-// portrait phone aspect, uncompressed output so it runs on any static host
-// without special server config (GitHub Pages, itch.io, etc.), no compression
-// surprises with Content-Encoding headers.
+// the "Responsive" template (Assets/WebGLTemplates/Responsive) fills the browser
+// viewport on phone, tablet and desktop alike — ResponsiveDisplay.cs then
+// letterboxes the phone-aspect UI/gameplay inside whatever shape that turns out
+// to be. Output is uncompressed so it runs on any static host without special
+// server config (GitHub Pages, itch.io, etc.), no compression surprises with
+// Content-Encoding headers.
+//
+// Outputs straight to /docs so GitHub Pages can serve it with zero extra steps —
+// just enable Pages on this repo for "Deploy from a branch: main /docs" and
+// commit + push the result of every rebuild.
 //
 // Run via Tools > Doom Scrolling > Build For Web (WebGL), or headless:
 //   Unity.exe -batchmode -quit -projectPath <path> -executeMethod WebGLBuildScript.BuildFromCommandLine
@@ -11,7 +18,7 @@ using UnityEngine;
 
 public static class WebGLBuildScript
 {
-    const string OUTPUT_DIR = "Builds/WebGL";
+    const string OUTPUT_DIR = "docs";
 
     [MenuItem("Tools/Doom Scrolling/Build For Web (WebGL)")]
     public static void Build()
@@ -48,10 +55,12 @@ public static class WebGLBuildScript
         PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
         PlayerSettings.WebGL.decompressionFallback = true;
 
-        // Portrait phone aspect to match the UI (see PhoneGameViewSetup.cs: 1125x2436, ~19.5:9).
-        PlayerSettings.defaultWebScreenWidth = 450;
-        PlayerSettings.defaultWebScreenHeight = 975;
+        // Initial canvas buffer size before the page's CSS (100dvw/100dvh) and Unity's
+        // matchWebGLToCanvasSize take over on the first frame — doesn't need to match any
+        // particular device, just a sane starting point.
+        PlayerSettings.defaultWebScreenWidth = 960;
+        PlayerSettings.defaultWebScreenHeight = 600;
 
-        PlayerSettings.WebGL.template = "APPLICATION:Default";
+        PlayerSettings.WebGL.template = "PROJECT:Responsive";
     }
 }
