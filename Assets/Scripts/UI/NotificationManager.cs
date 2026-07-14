@@ -33,7 +33,7 @@ public class NotificationManager : MonoBehaviour
     static readonly Color BgColor      = new Color(0.97f, 0.97f, 0.98f, 0.96f); // white frosted
     static readonly Color ShadowColor  = new Color(0f,    0f,    0f,    0.14f); // subtle drop shadow
     static readonly Color AppNameColor = new Color(0.40f, 0.40f, 0.45f, 1f);   // medium gray
-    static readonly Color TimeColor    = new Color(0.58f, 0.58f, 0.62f, 1f);   // lighter gray
+    static readonly Color TimeColor    = new Color(0.45f, 0.45f, 0.49f, 1f);   // lighter gray, still ~4.5:1 on BgColor
     static readonly Color MsgColor     = new Color(0.08f, 0.08f, 0.10f, 1f);   // near-black
 
     // Per-app icon color + single letter displayed inside the icon
@@ -48,6 +48,7 @@ public class NotificationManager : MonoBehaviour
         { "VIRAL",       (new Color(0.60f, 0.20f, 0.90f), "V") },
         { "DOOM·SCROLL", (new Color(1.00f, 0.30f, 0.56f), "D") },
         { "ALERTS",      (new Color(0.95f, 0.60f, 0.10f), "A") },
+        { "STATS",       (new Color(0.35f, 0.38f, 0.45f), "i") },
     };
 
     static readonly Dictionary<string, string> IconKeyToApp = new()
@@ -58,6 +59,7 @@ public class NotificationManager : MonoBehaviour
         { "notif",  "ALERTS" },
         { "follow", "INSTAGRAM" },
         { "like",   "INSTAGRAM" },
+        { "achievement", "STATS" },
     };
 
     // Gameplay feedback (malus/clone/hint) must never wait behind a random ambient
@@ -160,17 +162,17 @@ public class NotificationManager : MonoBehaviour
 
             int lvl   = GameManager.Instance.Level;
             int score = GameManager.Instance.Score;
-            int min   = (int)(GameManager.Instance.SessionTimer / 60);
+            int min   = (int)(GameManager.Instance.EngagementSeconds / 60);
 
             int pick = Random.Range(0, 5);
             string[] apps = { "INSTAGRAM", "TIKTOK", "ANALYTICS", "SCREENTIME", "TWITTER" };
             string text = pick switch
             {
-                0 => $"{score / 50} Likes",
-                1 => $"{Random.Range(lvl * 100, lvl * 500)} Profile Views",
-                2 => $"Engagement {Random.Range(60, 99)}%",
-                3 => $"{min} min scrolled",
-                _ => $"New Followers: +{GameManager.Instance.AppIconsThisLevel * 10}"
+                0 => $"{score / 50} people liked this without you",
+                1 => $"{Random.Range(lvl * 100, lvl * 500)} people saw this before you did",
+                2 => $"You're {Random.Range(3, 9)} stories behind everyone else",
+                3 => $"{min} min in. Still no closer to done",
+                _ => $"{GameManager.Instance.AppIconsThisLevel * 10} people moved on without you"
             };
             _ambientQueue.Enqueue((text, apps[pick]));
             if (!_showing) StartCoroutine(ProcessQueue());

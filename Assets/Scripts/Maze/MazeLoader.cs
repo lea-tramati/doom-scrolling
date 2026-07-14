@@ -120,16 +120,18 @@ public class MazeLoader : MonoBehaviour
 
     void ApplySmartphoneTheme()
     {
-        // Fond AMOLED noir profond
+        // Fond AMOLED noir profond — reste le point le plus sombre de la hiérarchie
+        // de valeurs ci-dessous, pour que sol/murs se détachent clairement du vide.
         if (Camera.main != null)
-            Camera.main.backgroundColor = new Color(0.02f, 0.02f, 0.03f);
+            Camera.main.backgroundColor = new Color(0.04f, 0.035f, 0.07f);
 
-        // Murs : gris-bleu sombre (comme les bords d'un UI smartphone)
-        if (wallTilemap  != null) wallTilemap.color  = new Color(0.40f, 0.42f, 0.50f);
-        // Sol : quasi-noir
-        if (floorTilemap != null) floorTilemap.color = new Color(0.06f, 0.06f, 0.09f);
-        // Zone lente : gris légèrement plus clair pour rester lisible
-        if (malusTilemap != null) malusTilemap.color = new Color(0.30f, 0.30f, 0.35f);
+        // Murs : gris-bleu clair et lumineux — doivent sauter aux yeux pendant le jeu.
+        if (wallTilemap  != null) wallTilemap.color  = new Color(0.70f, 0.72f, 0.85f);
+        // Sol : indigo sombre mais nettement plus clair que le fond, pour que le
+        // tracé du labyrinthe reste visible même sans mur autour.
+        if (floorTilemap != null) floorTilemap.color = new Color(0.18f, 0.17f, 0.24f);
+        // Zone lente : violet-gris clair, entre le sol et les murs en luminosité.
+        if (malusTilemap != null) malusTilemap.color = new Color(0.48f, 0.42f, 0.56f);
     }
 
     Vector3 GridToWorld(Vector2Int cell) =>
@@ -361,7 +363,7 @@ public class MazeLoader : MonoBehaviour
             _playerInstance.transform.position = GridToWorld(_data.playerSpawn);
 
         _playerInstance.GetComponent<PlayerController>()?.Init(_walkable);
-        GameManager.Instance?.ShowHintOnce("move", "USE ARROWS / WASD TO MOVE");
+        GameManager.Instance?.ShowHintOnce("move", "SWIPE TO MOVE (OR WASD)");
     }
 
     void SpawnEnemies()
