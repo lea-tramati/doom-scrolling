@@ -23,11 +23,15 @@ public class NotificationManager : MonoBehaviour
     [SerializeField] float minInterval = 15f;
     [SerializeField] float maxInterval = 40f;
 
-    // Panel geometry (canvas units)
-    const float PanelW  = 420f;
-    const float PanelH  = 80f;
-    const float ShownY  = -14f;         // visible: 14 units below canvas top
-    const float HiddenY = PanelH + 14f; // hidden:  fully above canvas top
+    // Panel geometry (canvas units). ResponsiveDisplay.cs runs every canvas at a
+    // 1125x2436 reference (iPhone-style @3x device pixels), but this layout was
+    // originally sized against a much smaller reference — the card rendered at
+    // roughly 40% the size of a real iOS notification. Values below are sized
+    // directly against the 1125x2436 reference to match a real banner's proportions.
+    const float PanelW  = 1050f;
+    const float PanelH  = 200f;
+    const float ShownY  = -35f;         // visible: 35 units below canvas top
+    const float HiddenY = PanelH + 35f; // hidden:  fully above canvas top
 
     // ── iOS palette ───────────────────────────────────────────────
     static readonly Color BgColor      = new Color(0.97f, 0.97f, 0.98f, 0.96f); // white frosted
@@ -204,7 +208,7 @@ public class NotificationManager : MonoBehaviour
             shRt.offsetMax = new Vector2(2f,  2f);
             var shImg                    = sh.AddComponent<Image>();
             shImg.color                   = ShadowColor;
-            shImg.sprite                  = RoundedRectSprite(18);
+            shImg.sprite                  = RoundedRectSprite(36);
             shImg.type                    = Image.Type.Sliced;
             shImg.fillCenter              = true;
             shImg.pixelsPerUnitMultiplier = 1f;
@@ -213,12 +217,12 @@ public class NotificationManager : MonoBehaviour
         // 2. White rounded background
         var bg    = panelRoot.GetComponent<Image>() ?? panelRoot.gameObject.AddComponent<Image>();
         bg.color                   = BgColor;
-        bg.sprite                  = RoundedRectSprite(16);
+        bg.sprite                  = RoundedRectSprite(32);
         bg.type                    = Image.Type.Sliced;
         bg.fillCenter              = true;
         bg.pixelsPerUnitMultiplier = 1f;
 
-        // 3. App icon  (rounded square, 36×36, left side, vertically centered)
+        // 3. App icon  (rounded square, 90×90, left side, vertically centered)
         if (panelRoot.Find("AppIcon") == null)
         {
             var icon   = new GameObject("AppIcon");
@@ -227,8 +231,8 @@ public class NotificationManager : MonoBehaviour
             iconRt.anchorMin        = new Vector2(0f, 0.5f);
             iconRt.anchorMax        = new Vector2(0f, 0.5f);
             iconRt.pivot            = new Vector2(0f, 0.5f);
-            iconRt.sizeDelta        = new Vector2(36f, 36f);
-            iconRt.anchoredPosition = new Vector2(14f, 0f);
+            iconRt.sizeDelta        = new Vector2(90f, 90f);
+            iconRt.anchoredPosition = new Vector2(35f, 0f);
 
             _iconBg        = icon.AddComponent<Image>();
             _iconBg.sprite = AppIconSprite();
@@ -243,7 +247,7 @@ public class NotificationManager : MonoBehaviour
             ltrRt.offsetMax = Vector2.zero;
             _iconLetter           = ltr.AddComponent<TextMeshProUGUI>();
             _iconLetter.text      = "D";
-            _iconLetter.fontSize  = 18f;
+            _iconLetter.fontSize  = 45f;
             _iconLetter.color     = Color.white;
             _iconLetter.fontStyle = FontStyles.Bold;
             _iconLetter.alignment = TextAlignmentOptions.Center;
@@ -263,9 +267,9 @@ public class NotificationManager : MonoBehaviour
             var sepRt = sep.AddComponent<RectTransform>();
             sepRt.anchorMin = new Vector2(0f, 0.5f);
             sepRt.anchorMax = new Vector2(1f, 0.5f);
-            sepRt.sizeDelta = new Vector2(0f, 0.5f);
-            sepRt.offsetMin = new Vector2(14f, 0f);
-            sepRt.offsetMax = new Vector2(-14f, 0f);
+            sepRt.sizeDelta = new Vector2(0f, 1.5f);
+            sepRt.offsetMin = new Vector2(35f, 0f);
+            sepRt.offsetMax = new Vector2(-35f, 0f);
             var sepImg      = sep.AddComponent<Image>();
             sepImg.color    = new Color(0f, 0f, 0f, 0.07f);
         }
@@ -274,32 +278,32 @@ public class NotificationManager : MonoBehaviour
         if (appLabel == null)
             appLabel = MakeLabel("AppLabel", panelRoot,
                 new Vector2(0f, 0.5f), Vector2.one,
-                new Vector2(60f, 1f), new Vector2(-82f, -4f),
-                8.5f, AppNameColor, FontStyles.Bold, TextAlignmentOptions.BottomLeft);
+                new Vector2(150f, 2.5f), new Vector2(-205f, -10f),
+                21f, AppNameColor, FontStyles.Bold, TextAlignmentOptions.BottomLeft);
 
         // 6. Time label (top row, right)
         if (timeLabel == null)
             timeLabel = MakeLabel("TimeLabel", panelRoot,
                 new Vector2(0.6f, 0.5f), Vector2.one,
-                Vector2.zero, new Vector2(-14f, -4f),
-                8.5f, TimeColor, FontStyles.Normal, TextAlignmentOptions.BottomRight);
+                Vector2.zero, new Vector2(-35f, -10f),
+                21f, TimeColor, FontStyles.Normal, TextAlignmentOptions.BottomRight);
 
         // 7. Message text (bottom row, bold, dark)
         if (notifLabel == null)
         {
             notifLabel = MakeLabel("NotifLabel", panelRoot,
                 Vector2.zero, new Vector2(1f, 0.5f),
-                new Vector2(60f, 6f), new Vector2(-14f, 0f),
-                13f, MsgColor, FontStyles.Bold, TextAlignmentOptions.Left);
+                new Vector2(150f, 15f), new Vector2(-35f, 0f),
+                32f, MsgColor, FontStyles.Bold, TextAlignmentOptions.Left);
         }
         else
         {
             var rt     = notifLabel.rectTransform;
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = new Vector2(1f, 0.5f);
-            rt.offsetMin = new Vector2(60f, 6f);
-            rt.offsetMax = new Vector2(-14f, 0f);
-            notifLabel.fontSize  = 13f;
+            rt.offsetMin = new Vector2(150f, 15f);
+            rt.offsetMax = new Vector2(-35f, 0f);
+            notifLabel.fontSize  = 32f;
             notifLabel.color     = MsgColor;
             notifLabel.fontStyle = FontStyles.Bold;
             notifLabel.alignment = TextAlignmentOptions.Left;
